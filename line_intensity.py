@@ -1,5 +1,5 @@
 #
-# hiirrl.py
+# line_intensity.py
 # start-up script 
 
 import argparse, os, sys

@@ -1,3 +1,4 @@
+#! /home/bliu/anaconda3/bin/python
 #
 # hiirrl.py
 # start-up script 
