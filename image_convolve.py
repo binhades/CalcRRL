@@ -6,7 +6,6 @@
 # this method is adopted from the Spectra-Cube pacakage, which deals with 3D data.
 
 import argparse, os
-from MontagePy.main import *
 from radio_beam import Beam
 from astropy import wcs
 from astropy import units as u
