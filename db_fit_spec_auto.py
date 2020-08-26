@@ -7,7 +7,7 @@ import argparse, sqlite3
 import numpy as np
 from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
-from fastspec import db
+import pyrrl as rrl
 
 def spec_fit(velo,spec,toPlot=False,toWrite=False,source='',paras=None):
 
@@ -53,12 +53,12 @@ def spec_fit(velo,spec,toPlot=False,toWrite=False,source='',paras=None):
 
 def main(args):
 
-    db_conn = db.create_connection(args.file_db)
+    db_conn = rrl.db.create_connection(args.file_db)
 
     with db_conn:
 
-        source_list = db.read_from_table(db_conn,'Source')
-        spec_list = db.read_from_table(db_conn,'Spectrum')
+        source_list = rrl.db.read_from_table(db_conn,'Source')
+        spec_list = rrl.db.read_from_table(db_conn,'Spectrum')
 
         for source in spec_list:
 
@@ -69,8 +69,8 @@ def main(args):
             
                 yfit,fpeak,vlsr,fwhm,fpeak_err,vlsr_err,fwhm_err = spec_fit(velo,spec,toPlot=args.plot,toWrite=args.write,source=source['GName'])
 
-                db.add_to_specfit(db_conn,(source['GName'],fpeak,fpeak_err,vlsr,vlsr_err,fwhm,fwhm_err),table='SpFitHa')
-                db.update_specfit_yfit(db_conn,yfit,source['GName'])
+                rrl.db.add_to_specfit(db_conn,(source['GName'],fpeak,fpeak_err,vlsr,vlsr_err,fwhm,fwhm_err),table='SpFitHa')
+                rrl.db.update_specfit_yfit(db_conn,yfit,source['GName'])
 
     return 0
 
