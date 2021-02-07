@@ -7,6 +7,7 @@
 
 import argparse, os
 from radio_beam import Beam
+import numpy as np
 from astropy import wcs
 from astropy import units as u
 from astropy.io import fits
@@ -14,7 +15,7 @@ from astropy import convolution
 
 def main(args):
     hdul = fits.open(args.file_in,'readonly')
-    raw_img = hdul[0].data
+    raw_img = np.squeeze(hdul[0].data)
     img_wcs = wcs.WCS(hdul[0].header)
     pixscale = wcs.utils.proj_plane_pixel_area(img_wcs.celestial)**0.5*u.deg
 
@@ -23,11 +24,16 @@ def main(args):
     cov_beam = new_beam.deconvolve(raw_beam)
     cov_kernel = cov_beam.as_kernel(pixscale)
 
-    new_img = convolution.convolve_fft(raw_img, cov_kernel, normalize_kernel=True)
+    new_img = convolution.convolve_fft(raw_img, cov_kernel, normalize_kernel=True,allow_huge=True)
+    print(new_img.shape)
 
-    new_hdu = fits.PrimaryHDU(new_img)
+    new_data = np.reshape(new_img,hdul[0].data.shape)
+
+    print(new_data.shape)
+
+    new_hdu = fits.PrimaryHDU(new_data)
     new_hdu.header = hdul[0].header.copy()
-
+    new_hdu.header['NAXIS'] = 4
     new_hdu.writeto(args.fileout,overwrite=True)
 
     return 0
