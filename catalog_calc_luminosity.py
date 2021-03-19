@@ -27,8 +27,8 @@ def main(args):
         #print(item)
         d =    float(item['D_near'])
         sp =   float(item['Peak']  ) /1000. # mJy -> Jy
-        vlsr = float(item['Vlsr']  )
-        fwhm = float(item['fwhm']  )
+        vlsr = float(item['VLSR']  )
+        fwhm = float(item['FWHM']  )
         v_res = 0.5
 
         L = luminosity(sp,fwhm,0.5,d,unit='solar')
