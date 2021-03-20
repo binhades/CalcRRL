@@ -31,7 +31,7 @@ def main(args):
     for item in catalog:
 
         index.append(int(item['Index'] ))
-        vlsr.append(float(item['Vlsr']))
+        vlsr.append(float(item['VLSR']))
 
     n_bins = 10
     bins = [*range(35,95,5)]
