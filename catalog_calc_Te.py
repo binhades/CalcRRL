@@ -56,14 +56,14 @@ def main(args):
         #print(item)
         l = float(item['GLon'])
         b = float(item['GLat'])
-        T_l  = float(item['Peak']  ) /1000. # mJy -> Jy
-        d_V = float(item['FWHM']  )
+        T_l  = float(item['Peak']) 
+        d_V = float(item['FWHM'])
 
         T_c = flux_from_image(args.cont_imag,l,b,r=10,method=args.method)
         T_e = rrl.calc.Te(T_c,T_l,d_V,freq=args.frequency,p_he=0.1)
         #print('Source:  {};\nPeak at: G{:07.3f}{:+07.3f};'.format(item['GName'],l,b))
         #print('TC: {:8.4f};\nTL: {:8.4f}, delta_V: {:6.2f} km/s;\nTe:{:6.0f} K'.format(T_c,T_l,d_V,T_e))
-        print('{index} {gname} {tc:7.4f} {tl:7.4f} {te:5.0f}'.format(index=item['Index'],gname=item['GName'],tc=T_c,tl=T_l,te=T_e))
+        print('{index:2} {gname} {tc:7.4f} {tl:7.4f} {l2c:6.4f} {te:5.0f}'.format(index=item['Index'],gname=item['GName'],tc=T_c,tl=T_l,l2c=T_l/T_c,te=T_e))
 
     return 0
 
