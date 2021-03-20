@@ -3,6 +3,9 @@
 ##!/usr/bin/python3
 # calc_te.py
 # to Calculate electron temperature 
+# 1. load source from ds9-reg file
+# 2. load source spectrum from data cube and then fit.
+# 3. read continuum flux from image.
 
 import argparse, os
 import numpy as np
