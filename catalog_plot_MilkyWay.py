@@ -54,10 +54,11 @@ def main(args):
     colors= ['red','green','blue']
 
     fig,ax = plt.subplots(figsize=(6,8))
-    plot_MilkyWay(ax,xlim=[-3,6],ylim=[-2,10],csize=3)
+    plot_MilkyWay(ax,xlim=[-3,7],ylim=[-2,10],csize=3)
 
     for i, item in enumerate(catalog):
-        d = float(item['D_near'])
+        d_n = float(item['D_near'])
+        d_f = float(item['D_far'])
         l = np.deg2rad(float(item['GLon']))
 
         if i+1 in green:
@@ -67,9 +68,13 @@ def main(args):
         elif i+1 in red:
             c = 'red'
 
-        x = d*np.sin(l)
-        y = R_sun - d*np.cos(l)
-        ax.plot(x,y,'o',markersize=10,markerfacecolor=c,alpha=0.3,markeredgecolor='k')
+        x_n = d_n*np.sin(l)
+        x_f = d_f*np.sin(l)
+        y_n = R_sun - d_n*np.cos(l)
+        y_f = R_sun - d_f*np.cos(l)
+        #ax.plot(x,y,'o',markersize=10,alpha=0.3,markerfacecolor=c,markeredgecolor='k')
+        ax.plot(x_n,y_n,'+',markersize=16,color=c)
+        ax.plot(x_f,y_f,'x',markersize=8,color=c)
 
     fig.tight_layout()
     if args.file_png is not None:
