@@ -30,7 +30,7 @@ def load_catalog(file_reg):
 
     return name_list,source_list
 
-def rrl_from_cube(file_cube,source,paras=None):
+def rrl_from_cube(file_cube,source,init=None):
 
     cube = SpectralCube.read(file_cube)
     velo = cube.spectral_axis.value
@@ -40,7 +40,7 @@ def rrl_from_cube(file_cube,source,paras=None):
     spec = sub_cube.mean(axis=(1,2)).value
     print(type(spec))
 
-    yfit,fpeak,vlsr,fwhm,e1,e2,e3 = rrl.spec.fit(velo,spec,paras=paras)
+    yfit,fpeak,vlsr,fwhm,e1,e2,e3 = rrl.spec.fit(velo,spec,init=init)
 
     err = np.sqrt(np.nanstd(spec-yfit)**2+e1**2)
 
@@ -112,7 +112,7 @@ def main(args):
     for i, fcube in enumerate(cube_list):
         line = parse_file(fcube)
         freq = lines[line]
-        flux, ferr = rrl_from_cube(fcube, source,paras=init)
+        flux, ferr = rrl_from_cube(fcube, source,init=init)
         print('{} ; Freq {:8.3f}'.format(line,freq))
         print('TL: {:8.4f}, err: {:6.2f};'.format(flux,ferr))
         line_list.append(line)
