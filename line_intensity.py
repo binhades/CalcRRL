@@ -1,4 +1,5 @@
-#
+#!/usr/bin/python3
+
 # line_intensity.py
 # start-up script 
 
