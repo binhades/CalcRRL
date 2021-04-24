@@ -14,16 +14,7 @@ def plot_lines(lines):
 def main(args):
 
     n_arr = np.arange(args.n_start, args.n_stop+1)
-
-    if args.element == 'H':
-        freq = rrl.calc.recombination_line_frequency_H(n_arr,delta=args.delta_n)
-    elif args.element == 'He':
-        freq = rrl.calc.recombination_line_frequency_He(n_arr,delta=args.delta_n)
-    elif args.element == 'C':
-        freq = rrl.calc.recombination_line_frequency_C(n_arr,delta=args.delta_n)
-    else:
-        print('Element is not correct')
-        return 0
+    freq = rrl.calc.recombination_line_frequency(n_arr,delta=args.delta_n,element=args.element,unit=1e6)
 
     for i,n in enumerate(n_arr):
         name = rrl.calc.recombination_line_name(n,delta=args.delta_n,element=args.element)
