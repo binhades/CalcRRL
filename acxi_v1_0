@@ -1,0 +1,1302 @@
+ACXIGENERAL BN PROGRAM.  RADIO RECOMBINATION LINES FROM H REGIONS AND   ACXI0000
+1   COLD INTERSTELLAR CLOUDS: COMPUTATION OF THE BN FACTORS.            ACXI0000
+2   M. BROCKLEHURST, M. SALEM.                                          ACXI0000
+REF. IN COMP. PHYS. COMMUN. 13 (1977) 39                                ACXI0000
+JOB MS13 2355 BN PROGRAM TEST                                           ACXI0001
+ROUTE PRINTER WESTCAM,POST WCAV,NOTIFY                                  ACXI0002
+MSGLEVEL=1                                                              ACXI0003
+LIMSTORE 175K,COMP 75 SECS,PRINTER 5000                                 ACXI0004
+//ONE EXEC FTG1CLG,REGG=175K,LISTC=SOURCE,MAPL=MAP  COMPILE, LOAD, GO   ACXI0005
+//FORT.SYSIN DD *  SOURCE PROGRAM CARDS                                 ACXI0006
+C                      WIDE TEMPERATURE RANGE BN PROGRAM                ACXI0007
+C                      *********************************                ACXI0008
+C                                                                       ACXI0009
+C  PROGRAM FOR CALCULATION OF COEFFICIENTS OF DEPARTURE FROM            ACXI0010
+C  THERMODYNAMIC EQUILIBRIUM, BN, FOR HYDROGENIC ATOMS, AT ELECTRON     ACXI0011
+C  TEMPERATURES FROM 10K TO 20 000K                                     ACXI0012
+C                                                                       ACXI0013
+C  INPUT CARDS -                                                        ACXI0014
+C  ** ALPHANUMERIC TITLE CARD.                                          ACXI0015
+C  ** NORMALLY, THE FOLLOWING 6 CARDS (SEE WRITEUP FOR EXPLANATION) -   ACXI0016
+C 75  2  4                                                              ACXI0017
+C 30 31 32 33 34 35 37 39 41 43 46 49 52 55 58 61 64 68 72 76 80 84 88  ACXI0018
+C 92 97102107112117122127132138144150156162168174180187194201208215222  ACXI0019
+C230238246254262270279288297306315325335345355365375386397408419430441  ACXI0020
+C452463474485496507                                                     ACXI0021
+C 75 72 69 66                                                           ACXI0022
+C                                                                       ACXI0023
+C  ** ONE CARD WITH RADIATION TEMPERATURE AND EMISSION MEASURE OF       ACXI0024
+C  BACKGROUND RADIATION FIELD. FORMAT 2E10.3. IF EMISSION MEASURE READ  ACXI0025
+C  IS GE 10**10, IT IS TAKEN TO BE INFINITE. THIS CARD IS READ BY       ACXI0026
+C  FUNCTION COR(N,ISW). IF THIS SUBPROGRAM IS REPLACED BY THE USER, ANY ACXI0027
+C  CARDS READ BY  COR  WHEN CALLED WITH ISW=0 SHOULD BE PLACED HERE.    ACXI0028
+C  (BLANK CARD = NO FIELD).                                             ACXI0029
+C                                                                       ACXI0030
+C  ** (ONE CARD FOR EACH CASE TO BE CALCULATED) TEMPERATURE, DENSITY,   ACXI0031
+C  CASE (THIN=A - 1, THICK=B - 2), PRINT CYCLE (PRINT EVERY K-TH LEVEL),ACXI0032
+C  NPLO AND NPHI, WHERE OUTPUT IS TO BE PUNCHED FROM N=NPLO TO NPHI     ACXI0033
+C (NO PUNCHED OUTPUT IF NPHI=0), ALPHANUMERIC LABEL TO BE PUNCHED IN    ACXI0034
+C  COLUMNS 77-79 OF CARD OUTPUT.                                        ACXI0035
+C  FORMAT 2E10.5, 4I5, 37X, A3 (I.E., LABEL IN COLS. 78-80)             ACXI0036
+C                                                                       ACXI0037
+C  ** A BLANK CARD (WHICH ENDS EXECUTION)                               ACXI0038
+C                                                                       ACXI0039
+C                                                                       ACXI0040
+      COMMON /EXPDAT/ CXP(707),MAXN                                     ACXI0041
+      COMMON /FITDAT/ AFIT(4,4),IVAL(4),NFIT                            ACXI0042
+      COMMON /INOUT/ IREAD,IWRITE,IPUNCH                                ACXI0043
+      COMMON /PARMS/ DENS,T,ITM                                         ACXI0044
+      COMMON /TDEP/ TE32,TE12,CTE                                       ACXI0045
+      DIMENSION CO(75), DVAL(507), IND(75,2), IPIV(75), KBOUT(507),     ACXI0046
+     1 KCOUT(507), MVAL(75), SK(75,75) ,TITLE(10), VAL(507)             ACXI0047
+C                                                                       ACXI0048
+C  MANY MACHINES DO NOT REQUIRE THE FOLLOWING  DOUBLE PRECISION         ACXI0049
+C  STATEMENT IN MAIN OR SUBPROGRAMS                                     ACXI0050
+C                                                                       ACXI0051
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0052
+C                                                                       ACXI0053
+      DOUBLE PRECISION AFIT,ARG,CO,COR,CTE,CX,CXP,D,DENS,DVAL,H,HH,RATIOACXI0054
+     1,SK,T,T1,TE12,TE32,TITLE,VAL,X,XXXI                               ACXI0055
+      DATA NONE,NBL/1H0,1H /,LPPG/45/                                   ACXI0056
+      READ (IREAD,70) TITLE                                             ACXI0057
+      READ (IREAD,80) IC,IR,NFIT                                        ACXI0058
+      READ (IREAD,80) (MVAL(I),I=1,IC)                                  ACXI0059
+      READ (IREAD,80) (IVAL(I),I=1,NFIT)                                ACXI0060
+      WRITE (IWRITE,90) TITLE                                           ACXI0061
+      WRITE (IWRITE,100) IC,(MVAL(I),I=1,IC)                            ACXI0062
+      WRITE (IWRITE,110) NFIT,(IVAL(I),I=1,NFIT)                        ACXI0063
+      WRITE (IWRITE,120) IR                                             ACXI0064
+      T1=0.D0                                                           ACXI0065
+      MAXN=MVAL(IC)                                                     ACXI0066
+      H=COR(0,0)                                                        ACXI0067
+      H=COLRAT(0,0,0.D0,0.D0)                                           ACXI0068
+ 10   READ (IREAD,130) T,DENS,NMIN,ICYC,NPLO,NPHI,LABEL                 ACXI0069
+C                                                                       ACXI0070
+C  FOR MACHINES WITH THE  END=  FEATURE, USE THE FOLLOWING FORM -       ACXI0071
+C10   READ (IREAD,130,END=65) T,DENS,NMIN,ICYC,NPLO,NPHI,LABEL          ACXI0072
+      IF (T.LE.0.D0.OR.DENS.LE.0.D0) STOP                               ACXI0073
+      IF (NMIN.LE.0) NMIN=2                                             ACXI0074
+      NPLO=MAX0(NPLO,MVAL(1))                                           ACXI0075
+      NPHI=MIN0(NPHI,MVAL(IC))                                          ACXI0076
+      ND=NPHI-NPLO+1                                                    ACXI0077
+      ICYC=MAX0(1,ICYC)                                                 ACXI0078
+      NPAGE=1                                                           ACXI0079
+      NLINE=0                                                           ACXI0080
+      IF (T.EQ.T1) GO TO 30                                             ACXI0081
+      ITM=1                                                             ACXI0082
+      IF (T.GE.1000.D0) ITM=3                                           ACXI0083
+      TE12=DSQRT(T)                                                     ACXI0084
+      TE32=T*TE12                                                       ACXI0085
+      CTE=15.778D4/T                                                    ACXI0086
+      DO 20 I=1,707                                                     ACXI0087
+      CX=0.D0                                                           ACXI0088
+      ARG=CTE/DFLOAT(I**2)                                              ACXI0089
+      IF (ARG.LE.165.D0) CX=DEXP(-ARG)                                  ACXI0090
+ 20   CXP(I)=CX                                                         ACXI0091
+      CALL COLION (0,1,T,H)                                             ACXI0092
+      CALL RADCOL (T,MVAL,IC,NMIN)                                      ACXI0093
+ 30   CALL REDUCE (MVAL,IC,IR,SK)                                       ACXI0094
+      CALL RHS (CO,MVAL,IC)                                             ACXI0095
+      CALL JMD (SK,CO,MVAL,IC)                                          ACXI0096
+      CALL MATINV (SK,IC,CO,1,D,IRROR,75,IPIV,IND)                      ACXI0097
+      CALL INTERP (MVAL,CO,VAL,DVAL,IC,2)                               ACXI0098
+      J=MVAL(1)                                                         ACXI0099
+      K=MVAL(IC)                                                        ACXI0100
+      IPUN=0                                                            ACXI0101
+      DO 60 I=J,K                                                       ACXI0102
+      RATIO=DVAL(I)/VAL(I)                                              ACXI0103
+      H=T*DFLOAT(I)**3*RATIO/3.158D5                                    ACXI0104
+      HH=1.D0-H                                                         ACXI0105
+      XXXI=DEXP(15.778D4/(DFLOAT(I*I)*T))*VAL(I)                        ACXI0106
+      X=-HH*XXXI*100.D0/T                                               ACXI0107
+      IF (MOD(I,ICYC).NE.0) GO TO 50                                    ACXI0108
+      NSKIP=NBL                                                         ACXI0109
+      IF (MOD(NLINE,5).EQ.0) NSKIP=NONE                                 ACXI0110
+      IF (MOD(NLINE,LPPG).NE.0) GO TO 40                                ACXI0111
+      WRITE (IWRITE,140) T,DENS,NMIN,NPAGE                              ACXI0112
+      WRITE (IWRITE,150)                                                ACXI0113
+      NPAGE=NPAGE+1                                                     ACXI0114
+ 40   NLINE=NLINE+1                                                     ACXI0115
+      WRITE (IWRITE,160) NSKIP,I,VAL(I),HH,DVAL(I),RATIO,H,X            ACXI0116
+ 50   IF (NPHI.EQ.0) GO TO 60                                           ACXI0117
+      IF (I.LT.NPLO) GO TO 60                                           ACXI0118
+      IF (I.GT.NPHI) GO TO 60                                           ACXI0119
+      IPUN=IPUN+1                                                       ACXI0120
+      KBOUT(IPUN)=VAL(I)*1.D4                                           ACXI0121
+      KCOUT(IPUN)=DLOG10(RATIO)*1.D4                                    ACXI0122
+ 60   CONTINUE                                                          ACXI0123
+      T1=T                                                              ACXI0124
+      IF (NPHI.NE.0) CALL BCPCH (KBOUT,KCOUT,T,DENS,NMIN,LABEL,NPLO,NPHIACXI0125
+     1,ND)                                                              ACXI0126
+      GO TO 10                                                          ACXI0127
+   65 STOP                                                              ACXI0128
+C                                                                       ACXI0129
+ 70   FORMAT (10A8)                                                     ACXI0130
+ 80   FORMAT (1X,23I3)                                                  ACXI0131
+ 90   FORMAT (20X,10A8/20X,20(4H****)///)                               ACXI0132
+ 100  FORMAT (7H MVAL (,I3,10H VALUES) -/(1X,24I5))                     ACXI0133
+ 110  FORMAT (7H0IVAL (,I3,10H VALUES) -/(1X,24I5))                     ACXI0134
+ 120  FORMAT (5H0IR =,I3)                                               ACXI0135
+ 130  FORMAT (2G10.3,4I5,37X,A3)                                        ACXI0136
+ 140  FORMAT (14H1TEMPERATURE =,F6.0,14H K,  DENSITY =,1PG10.3,15H/CM**3ACXI0137
+     1,  NMIN =,I3,1H.,51X,4HPAGE,I3)                                   ACXI0138
+ 150  FORMAT (3H0 N,9X,2HBN,16X,4HBETA,14X,6HDBN/DN,10X,12HD(LN(BN))/DN,ACXI0139
+     17X,6H1-BETA,13X,4HZETA)                                           ACXI0140
+ 160  FORMAT (A1,I3,1P6G18.6)                                           ACXI0141
+      END                                                               ACXI0142
+C                                                                       ACXI0143
+      SUBROUTINE BCPCH (KB,KC,T,DENS,NMIN,LABEL,NPLO,NPHI,NDIM)         ACXI0144
+C                                                                       ACXI0145
+C  PUNCHES BN AND CN VALUES IN STANDARD FORMAT                          ACXI0146
+C                                                                       ACXI0147
+      COMMON /INOUT/ IREAD,IWRITE,IPUNCH                                ACXI0148
+      DIMENSION KB(NDIM), KC(NDIM), K1(19), K2(12)                      ACXI0149
+      DOUBLE PRECISION DENL,DENS,T,TL                                   ACXI0150
+      EQUIVALENCE (K1(1),K2(1))                                         ACXI0151
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0152
+      INTEGER ALPHA(35)                                                 ACXI0153
+C  SOME COMPILERS REQUIRE  (ALPHA(I),I=1,35)  IN DATA STATEMENT         ACXI0154
+      DATA ALPHA/1H1,1H2,1H3,1H4,1H5,1H6,1H7,1H8,1H9,1HA,1HB,1HC,1HD,1HEACXI0155
+     1,1HF,1HG,1HH,1HI,1HJ,1HK,1HL,1HM,1HN,1HO,1HP,1HQ,1HR,1HS,1HT,1HU,1ACXI0156
+     2HV,1HW,1HX,1HY,1HZ/                                               ACXI0157
+      N=NPHI-NPLO+1                                                     ACXI0158
+      TL=DLOG10(T)                                                      ACXI0159
+      DENL=DLOG10(DENS)                                                 ACXI0160
+      WRITE (IPUNCH,50) TL,DENL,NMIN,NPLO,NPHI,LABEL,ALPHA(1)           ACXI0161
+      NB=N/19                                                           ACXI0162
+      IF (19*NB.NE.N) NB=NB+1                                           ACXI0163
+      NC=N/12                                                           ACXI0164
+      IF (12*NC.NE.N) NC=NC+1                                           ACXI0165
+      IPOINT=0                                                          ACXI0166
+      DO 20 I=1,NB                                                      ACXI0167
+      DO 10 J=1,19                                                      ACXI0168
+      IPOINT=IPOINT+1                                                   ACXI0169
+      K=0                                                               ACXI0170
+      IF (IPOINT.LE.N) K=KB(IPOINT)                                     ACXI0171
+      K1(J)=K                                                           ACXI0172
+ 10   CONTINUE                                                          ACXI0173
+      WRITE (IPUNCH,60) K1,LABEL,ALPHA(I+1)                             ACXI0174
+ 20   CONTINUE                                                          ACXI0175
+      IPOINT=0                                                          ACXI0176
+      DO 40 I=1,NC                                                      ACXI0177
+      DO 30 J=1,12                                                      ACXI0178
+      IPOINT=IPOINT+1                                                   ACXI0179
+      K=0                                                               ACXI0180
+      IF (IPOINT.LE.N) K=KC(IPOINT)                                     ACXI0181
+      K2(J)=K                                                           ACXI0182
+ 30   CONTINUE                                                          ACXI0183
+      NBI=NB+I+1                                                        ACXI0184
+      WRITE (IPUNCH,70) K2,LABEL,ALPHA(NBI)                             ACXI0185
+ 40   CONTINUE                                                          ACXI0186
+      WRITE (IWRITE,80) IPUNCH                                          ACXI0187
+      RETURN                                                            ACXI0188
+C                                                                       ACXI0189
+ 50   FORMAT (2F10.6,3I5,41X,A3,A1)                                     ACXI0190
+ 60   FORMAT (19I4,A3,A1)                                               ACXI0191
+ 70   FORMAT (12I6,4X,A3,A1)                                            ACXI0192
+ 80   FORMAT (////27H *** OUTPUT PUNCHED ON UNIT,I3)                    ACXI0193
+      END                                                               ACXI0194
+C                                                                       ACXI0195
+      BLOCK DATA                                                        ACXI0196
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0197
+      COMMON /GAUNTS/ A1(50),A2(50),A3(50),A4(50),A5(50),A6(50),A7(50),AACXI0198
+     18(50),A9(50),A10(50),A11(50),A14(50),A17(50),A20(50),A25(50),A30(5ACXI0199
+     20),A40(50),A50(50),A100(50),A150(50),A225(50),A500(50),IXV(12)    ACXI0200
+      COMMON /RCMB/ SV0A(33),SV0B(33),SV0C(33),SV1A(33),SV1B(33),SV1C(33ACXI0201
+     1),SV2A(33),SV2B(33),SV2C(33)                                      ACXI0202
+      COMMON /GAUSS/ VALUE(12)                                          ACXI0203
+      COMMON /INOUT/ IREAD,IWRITE,IPUNCH                                ACXI0204
+      DOUBLE PRECISION VALUE                                            ACXI0205
+C                                                                       ACXI0206
+C  INPUT/OUTPUT UNITS. IREAD IS CARD READER, IWRITE IS PRINTER, IPUNCH  ACXI0207
+C  IS CARD PUNCH.                                                       ACXI0208
+      DATA IREAD,IWRITE,IPUNCH/5,6,7/                                   ACXI0209
+C                                                                       ACXI0210
+C  NOTE - SOME COMPILERS REQUIRE AN IMPLIED DO LOOP WHEN THE VALUES OF  ACXI0211
+C  A WHOLE ARRAY ARE SET IN A DATA STATEMENT. THE FOLLOWING STATEMENTS  ACXI0212
+C  WILL NEED CHANGING TO (A1(I),I=1,50), ETC. (THE ANS STANDARD FORTRAN ACXI0213
+C  FORM IS EXCESSIVELY LENGTHY FOR LARGE ARRAYS.)                       ACXI0214
+C                                                                       ACXI0215
+C  RADIATIVE GAUNT FACTORS                                              ACXI0216
+C                                                                       ACXI0217
+      DATA A1/.7166,.7652,.7799,.7864,.7898,.7918,.7931,.7940,.7946,.795ACXI0218
+     11,.7954,.7957,.7959,.7961,.7963,.7964,.7965,.7966,.7966,.7967,.796ACXI0219
+     28,.7968,.7968,.7969,.7969,.7969,.7970,.7970,.7970,.7970,.7970,.797ACXI0220
+     31,.7971,.7971,.7971,.7971,.7971,.7971,.7971,.7971,.7972,.7972,.797ACXI0221
+     42,.7972,.7972,.7972,.7972,.7972,.7972,.7972/                      ACXI0222
+      DATA A2/.7566,.8217,.8441,.8549,.8609,.8647,.8672,.8690,.8702,.871ACXI0223
+     12,.8720,.8726,.8730,.8734,.8737,.8740,.8742,.8744,.8746,.8747,.874ACXI0224
+     29,.8750,.8751,.8751,.8752,.8753,.8753,.8754,.8755,.8755,.8755,.875ACXI0225
+     36,.8756,.8756,.8757,.8757,.8757,.8757,.8758,.8758,.8758,.8758,.875ACXI0226
+     48,.8759,.8759,.8759,.8759,.8759,.8759,.8759/                      ACXI0227
+      DATA A3/.7674,.8391,.8653,.8784,.8861,.8910,.8944,.8968,.8986,.900ACXI0228
+     10,.9011,.9019,.9026,.9032,.9037,.9041,.9044,.9047,.9049,.9052,.905ACXI0229
+     24,.9055,.9057,.9058,.9059,.9060,.9061,.9062,.9063,.9064,.9064,.906ACXI0230
+     35,.9066,.9066,.9067,.9067,.9067,.9068,.9068,.9068,.9069,.9069,.906ACXI0231
+     49,.9070,.9070,.9070,.9070,.9070,.9071,.9071/                      ACXI0232
+      DATA A4/.7718,.8467,.8750,.8896,.8984,.9041,.9081,.9110,.9132,.914ACXI0233
+     19,.9163,.9173,.9182,.9190,.9196,.9201,.9205,.9209,.9213,.9215,.921ACXI0234
+     28,.9220,.9222,.9224,.9226,.9227,.9228,.9230,.9231,.9232,.9233,.923ACXI0235
+     33,.9234,.9235,.9235,.9236,.9237,.9237,.9238,.9238,.9238,.9239,.923ACXI0236
+     49,.9240,.9240,.9240,.9240,.9241,.9241,.9241/                      ACXI0237
+      DATA A5/.7741,.8507,.8804,.8960,.9055,.9118,.9162,.9195,.9220,.924ACXI0238
+     10,.9255,.9268,.9278,.9287,.9294,.9300,.9306,.9310,.9314,.9318,.932ACXI0239
+     21,.9324,.9326,.9329,.9331,.9332,.9334,.9335,.9337,.9338,.9339,.934ACXI0240
+     30,.9341,.9342,.9343,.9344,.9344,.9345,.9345,.9346,.9347,.9347,.934ACXI0241
+     48,.9348,.9348,.9349,.9349,.9349,.9350,.9350/                      ACXI0242
+      DATA A6/.7753,.8531,.8837,.8999,.9099,.9167,.9215,.9251,.9278,.930ACXI0243
+     10,.9317,.9331,.9343,.9352,.9361,.9368,.9374,.9379,.9384,.9388,.939ACXI0244
+     22,.9395,.9398,.9400,.9403,.9405,.9407,.9408,.9410,.9412,.9413,.941ACXI0245
+     34,.9415,.9416,.9417,.9418,.9419,.9420,.9420,.9421,.9422,.9422,.942ACXI0246
+     43,.9423,.9424,.9424,.9425,.9425,.9426,.9426/                      ACXI0247
+      DATA A7/.7761,.8547,.8858,.9025,.9130,.9200,.9251,.9289,.9318,.934ACXI0248
+     12,.9360,.9376,.9389,.9399,.9408,.9416,.9423,.9429,.9434,.9439,.944ACXI0249
+     23,.9447,.9450,.9453,.9455,.9458,.9460,.9462,.9464,.9466,.9467,.946ACXI0250
+     38,.9470,.9471,.9472,.9473,.9474,.9475,.9476,.9477,.9477,.9478,.947ACXI0251
+     49,.9479,.9480,.9480,.9481,.9481,.9482,.9482/                      ACXI0252
+      DATA A8/.7767,.8558,.8873,.9044,.9151,.9224,.9277,.9317,.9348,.937ACXI0253
+     13,.9393,.9409,.9423,.9434,.9444,.9453,.9460,.9467,.9472,.9477,.948ACXI0254
+     22,.9486,.9489,.9493,.9496,.9498,.9501,.9503,.9505,.9507,.9509,.951ACXI0255
+     30,.9512,.9513,.9514,.9515,.9517,.9518,.9519,.9519,.9520,.9521,.952ACXI0256
+     42,.9522,.9523,.9524,.9524,.9525,.9525,.9526/                      ACXI0257
+      DATA A9/.7771,.8565,.8884,.9058,.9167,.9242,.9297,.9338,.9370,.939ACXI0258
+     16,.9417,.9434,.9449,.9461,.9472,.9481,.9489,.9496,.9502,.9507,.951ACXI0259
+     22,.9517,.9520,.9524,.9527,.9530,.9533,.9535,.9537,.9539,.9541,.954ACXI0260
+     33,.9545,.9546,.9548,.9549,.9550,.9551,.9552,.9553,.9554,.9555,.955ACXI0261
+     46,.9557,.9557,.9558,.9559,.9559,.9560,.9561/                      ACXI0262
+      DATA A10/.7773,.8571,.8892,.9068,.9179,.9256,.9312,.9354,.9388,.94ACXI0263
+     114,.9436,.9454,.9470,.9482,.9494,.9503,.9512,.9519,.9526,.9531,.95ACXI0264
+     237,.9541,.9545,.9549,.9553,.9556,.9559,.9561,.9564,.9566,.9568,.95ACXI0265
+     370,.9572,.9573,.9575,.9576,.9577,.9579,.9580,.9581,.9582,.9583,.95ACXI0266
+     484,.9585,.9585,.9586,.9587,.9588,.9588,.9589/                     ACXI0267
+      DATA A11/.7775,.8575,.8898,.9076,.9188,.9267,.9324,.9367,.9402,.94ACXI0268
+     129,.9452,.9470,.9486,.9500,.9511,.9521,.9530,.9538,.9545,.9551,.95ACXI0269
+     256,.9561,.9566,.9570,.9573,.9577,.9580,.9583,.9585,.9588,.9590,.95ACXI0270
+     392,.9594,.9595,.9597,.9599,.9600,.9601,.9603,.9604,.9605,.9606,.96ACXI0271
+     407,.9608,.9609,.9610,.9610,.9611,.9612,.9612/                     ACXI0272
+      DATA A14/.7779,.8583,.8910,.9091,.9207,.9288,.9347,.9393,.9429,.94ACXI0273
+     159,.9483,.9503,.9520,.9535,.9548,.9559,.9569,.9578,.9585,.9592,.95ACXI0274
+     298,.9604,.9609,.9614,.9618,.9622,.9625,.9629,.9632,.9634,.9637,.96ACXI0275
+     339,.9642,.9644,.9646,.9647,.9649,.9651,.9652,.9654,.9655,.9656,.96ACXI0276
+     457,.9659,.9660,.9661,.9662,.9662,.9663,.9664/                     ACXI0277
+      DATA A17/.7781,.8587,.8916,.9099,.9217,.9300,.9361,.9408,.9446,.94ACXI0278
+     176,.9502,.9523,.9541,.9557,.9571,.9582,.9593,.9602,.9611,.9618,.96ACXI0279
+     225,.9631,.9637,.9642,.9646,.9651,.9655,.9658,.9662,.9665,.9668,.96ACXI0280
+     370,.9673,.9675,.9677,.9679,.9681,.9683,.9685,.9686,.9688,.9689,.96ACXI0281
+     491,.9692,.9693,.9694,.9695,.9696,.9697,.9698/                     ACXI0282
+      DATA A20/.7782,.8590,.8920,.9105,.9224,.9307,.9370,.9418,.9456,.94ACXI0283
+     188,.9514,.9536,.9555,.9571,.9586,.9598,.9609,.9619,.9628,.9636,.96ACXI0284
+     243,.9649,.9655,.9661,.9666,.9670,.9675,.9679,.9682,.9686,.9689,.96ACXI0285
+     392,.9694,.9697,.9699,.9702,.9704,.9706,.9708,.9709,.9711,.9713,.97ACXI0286
+     414,.9716,.9717,.9718,.9719,.9721,.9722,.9723/                     ACXI0287
+      DATA A25/.7784,.8592,.8924,.9110,.9230,.9315,.9378,.9428,.9467,.95ACXI0288
+     100,.9527,.9550,.9569,.9586,.9601,.9614,.9626,.9637,.9646,.9655,.96ACXI0289
+     262,.9669,.9676,.9682,.9687,.9692,.9697,.9701,.9705,.9709,.9712,.97ACXI0290
+     315,.9718,.9721,.9724,.9727,.9729,.9731,.9733,.9735,.9737,.9739,.97ACXI0291
+     441,.9742,.9744,.9745,.9747,.9748,.9749,.9751/                     ACXI0292
+      DATA A30/.7784,.8594,.8926,.9113,.9234,.9319,.9383,.9433,.9474,.95ACXI0293
+     107,.9534,.9558,.9578,.9595,.9611,.9625,.9637,.9648,.9657,.9666,.96ACXI0294
+     274,.9682,.9689,.9695,.9701,.9706,.9711,.9715,.9720,.9724,.9727,.97ACXI0295
+     331,.9734,.9737,.9740,.9743,.9745,.9748,.9750,.9752,.9754,.9756,.97ACXI0296
+     458,.9760,.9762,.9763,.9765,.9766,.9768,.9769/                     ACXI0297
+      DATA A40/.7785,.8595,.8928,.9116,.9237,.9324,.9389,.9440,.9480,.95ACXI0298
+     114,.9542,.9567,.9587,.9606,.9622,.9636,.9649,.9660,.9670,.9680,.96ACXI0299
+     288,.9696,.9703,.9710,.9716,.9722,.9727,.9732,.9737,.9741,.9745,.97ACXI0300
+     349,.9752,.9756,.9759,.9762,.9765,.9768,.9770,.9773,.9775,.9777,.97ACXI0301
+     479,.9781,.9783,.9785,.9787,.9788,.9790,.9791/                     ACXI0302
+      DATA A50/.7785,.8596,.8929,.9117,.9239,.9326,.9391,.9443,.9484,.95ACXI0303
+     118,.9547,.9571,.9592,.9611,.9627,.9642,.9655,.9666,.9677,.9687,.96ACXI0304
+     296,.9704,.9711,.9718,.9724,.9730,.9736,.9741,.9746,.9751,.9755,.97ACXI0305
+     359,.9763,.9766,.9770,.9773,.9776,.9779,.9781,.9784,.9786,.9789,.97ACXI0306
+     491,.9793,.9795,.9797,.9799,.9801,.9803,.9804/                     ACXI0307
+      DATA A100/.7785,.8597,.8931,.9119,.9242,.9329,.9395,.9447,.9489,.9ACXI0308
+     1523,.9553,.9578,.9599,.9619,.9635,.9651,.9664,.9676,.9687,.9698,.9ACXI0309
+     2707,.9716,.9724,.9731,.9738,.9744,.9750,.9756,.9761,.9766,.9771,.9ACXI0310
+     3775,.9779,.9783,.9787,.9791,.9794,.9797,.9801,.9803,.9806,.9809,.9ACXI0311
+     4812,.9814,.9817,.9819,.9821,.9823,.9825,.9827/                    ACXI0312
+      DATA A150/.7786,.8597,.8931,.9119,.9242,.9330,.9396,.9448,.9490,.9ACXI0313
+     1525,.9554,.9579,.9601,.9620,.9637,.9652,.9666,.9678,.9690,.9700,.9ACXI0314
+     2710,.9718,.9726,.9734,.9741,.9747,.9754,.9759,.9765,.9770,.9775,.9ACXI0315
+     3779,.9783,.9787,.9791,.9795,.9799,.9802,.9805,.9808,.9811,.9814,.9ACXI0316
+     4817,.9819,.9822,.9824,.9827,.9829,.9831,.9833/                    ACXI0317
+      DATA A225/.7786,.8597,.8931,.9120,.9243,.9330,.9396,.9448,.9490,.9ACXI0318
+     1525,.9554,.9580,.9602,.9621,.9638,.9653,.9667,.9680,.9691,.9701,.9ACXI0319
+     2711,.9720,.9728,.9735,.9742,.9749,.9755,.9761,.9766,.9772,.9776,.9ACXI0320
+     3781,.9785,.9790,.9793,.9797,.9801,.9804,.9808,.9811,.9814,.9817,.9ACXI0321
+     4819,.9822,.9825,.9827,.9829,.9832,.9834,.9836/                    ACXI0322
+      DATA A500/.7786,.8597,.8931,.9120,.9243,.9330,.9396,.9448,.9490,.9ACXI0323
+     1525,.9555,.9580,.9602,.9621,.9639,.9654,.9668,.9680,.9692,.9702,.9ACXI0324
+     2712,.9720,.9729,.9736,.9743,.9750,.9756,.9762,.9768,.9773,.9778,.9ACXI0325
+     3782,.9787,.9791,.9795,.9799,.9802,.9806,.9809,.9812,.9815,.9818,.9ACXI0326
+     4821,.9824,.9827,.9829,.9831,.9834,.9836,.9838/                    ACXI0327
+      DATA IXV/11,14,17,20,25,30,40,50,100,150,225,507/                 ACXI0328
+C                                                                       ACXI0329
+      DATA VALUE/.4975936099985107D0,.4873642779856548D0,.46913727600136ACXI0330
+     164D0,.4432077635022005D0,.4100009929869515D0,.3700620957892772D0,.ACXI0331
+     23240468259684878D0,.2727107356944198D0,.2168967538130226D0,.157521ACXI0332
+     33398480817D0,.0955594337368082D0,.0320284464313028D0/             ACXI0333
+C                                                                       ACXI0334
+C  DATA FOR CALCULATION OF HYDROGENIC RECOMBINATION COEFFICIENTS        ACXI0335
+      DATA SV0A/.06845,.07335,.07808,.08268,.08714,.09148,.09570,.09982,ACXI0336
+     1.10385,.10778,.11163,.1209,.1297,.1382,.1462,.1540,.1615,.1687,.17ACXI0337
+     257,.1824,.1889,.1953,.2015,.2133,.2245,.2352,.2454,.2552,.2646,.27ACXI0338
+     336,.2823,.2906,.2987/                                             ACXI0339
+      DATA SV0B/.3140,.3284,.3419,.3547,.3668,.3783,.3892,.3996,.4096,.4ACXI0340
+     1191,.4413,.4615,.4799,.4968,.5124,.5269,.5404,.5530,.5648,.5759,.5ACXI0341
+     2864,.5963,.6146,.6311,.6461,.6598,.6724,.6840,.6947,.7047,.7140,.7ACXI0342
+     3226,.7384/                                                        ACXI0343
+      DATA SV0C/.7524,.7649,.7761,.7862,.7955,.8039,.8117,.8188,.8254,.8ACXI0344
+     1399,.8521,.8626,.8716,.8795,.8865,.8927,.8982,.9032,.9077,.9118,.9ACXI0345
+     2156,.9223,.9279,.9328,.9370,.9408,.9441,.9471,.9498,.9522,.9544,2*ACXI0346
+     3.9544/                                                            ACXI0347
+      DATA SV1A/.00417,.00444,.00469,.00493,.00516,.00538,.00558,.00578,ACXI0348
+     1.00597,.00614,.00631,.0067,.0070,.0073,.0076,.0078,.0080,.0082,.00ACXI0349
+     283,.0085,.0086,.0087,.0087,.0088,.0088,.0088,.0087,.0086,.0084,.00ACXI0350
+     382,.0080,.0077,.0074/                                             ACXI0351
+      DATA SV1B/.0068,.0060,.0053,.0044,.0035,.0025,.0016,+.0005,-.0005,ACXI0352
+     1-.0016,-.0044,-.0072,-.0101,-.0130,-.0160,-.0190,-.0220,-.0250,-.0ACXI0353
+     2279,-.0308,-.0337,-.0366,-.0422,-.0478,-.0532,-.0586,-.0638,-.0689ACXI0354
+     3,-.0739,-.0788,-.0835,-.0882,-.0972/                              ACXI0355
+      DATA SV1C/-.1058,-.1141,-.1220,-.1295,-.1368,-.1438,-.1506,-.1571,ACXI0356
+     1-.1634,-.1784,-.1923,-.2053,-.2174,-.2289,-.2397,-.2499,-.2596,-.2ACXI0357
+     2689,-.2777,-.2862,-.2944,-.3099,-.3242,-.3376,-.3502,-.3622,-.3736ACXI0358
+     3,-.3844,-.3948,-.4047,-.4147,2*-.4147/                            ACXI0359
+      DATA SV2A/-.00120,-.00131,-.00142,-.00153,-.00164,-.00175,-.00186,ACXI0360
+     1-.00197,-.00207,-.00218,-.00228,-.0025,-.0028,-.0030,-.0033,-.0035ACXI0361
+     2,-.0038,-.0040,-.0043,-.0045,-.0047,-.0050,-.0052,-.0056,-.0061,-.ACXI0362
+     30065,-.0070,-.0074,-.0078,-.0082,-.0086,-.0091,.0095/             ACXI0363
+      DATA SV2B/-.0103,-.0110,-.0118,-.0126,-.0133,-.0141,-.0148,-.0155,ACXI0364
+     1-.0162,-.0170,-.0187,-.0204,-.0221,-.0237,-.0253,-.0269,-.0284,-.0ACXI0365
+     2299,-.0314,-.0329,-.0344,-.0359,-.0388,-.0416,-.0444,-.0471,-.0497ACXI0366
+     3,-.0523,-.0549,-.0575,-.0600,-.0625,-.0674/                       ACXI0367
+      DATA SV2C/-.0722,-.0768,-.0814,-.0859,-.0904,-.0947,-.0989,-.1031,ACXI0368
+     1-.1072,-.1174,-.1272,-.1367,-.146,-.155,-.1638,-.1723,-.1807,-.189ACXI0369
+     2,-.197,-.2049,-.2127,-.228,-.243,-.257,-.272,-.285,-.299,-.312,-.3ACXI0370
+     325,-.337,3*-.35/                                                  ACXI0371
+      END                                                               ACXI0372
+C                                                                       ACXI0373
+      FUNCTION BK (N,NDASH,IS)                                          ACXI0374
+C                                                                       ACXI0375
+C  CALLS APPROPRIATE ROUTINES FOR CALCULATION OF ATOMIC DATA FOR        ACXI0376
+C  ARRAY SK (IN MAIN)                                                   ACXI0377
+C                                                                       ACXI0378
+C  N=INITIAL LEVEL, NDASH=FINAL LEVEL, IS=SUBSCRIPT WHICH IDENTIFIES    ACXI0379
+C  VALUE OF N IN CONDENSED MATRIX                                       ACXI0380
+C                                                                       ACXI0381
+      COMMON /EXPDAT/ CXP(707),MAXN                                     ACXI0382
+      COMMON /PARMS/ DENS,T,ITM                                         ACXI0383
+      COMMON /RCRATS/ RADTOT(75),COLTOT(75)                             ACXI0384
+      COMMON /TDEP/ TE32,TE12,CTE                                       ACXI0385
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0386
+      DOUBLE PRECISION A,AN,ANDASH,BK,C,COLTOT,COR,CTE,CX,CXP,DENS,G,RADACXI0387
+     1TOT,RT,T,TE12,TE32,TEMP                                           ACXI0388
+      IF (N-NDASH) 20,10,50                                             ACXI0389
+C                                                                       ACXI0390
+C  NDASH=N                                                              ACXI0391
+ 10   CALL COLION (N,1,T,RT)                                            ACXI0392
+      BK=-RADTOT(IS)-(COLTOT(IS)+RT)*DENS                               ACXI0393
+      IF (N.LE.20) RETURN                                               ACXI0394
+      BK=BK+COR(N,3)                                                    ACXI0395
+      RETURN                                                            ACXI0396
+C                                                                       ACXI0397
+C  NDASH GT N                                                           ACXI0398
+ 20   CALL RAD (A,N,NDASH,G)                                            ACXI0399
+      C=COLRAT(N,NDASH,T,TE12)                                          ACXI0400
+      AN=N                                                              ACXI0401
+      ANDASH=NDASH                                                      ACXI0402
+      IF (NDASH.GT.707) GO TO 30                                        ACXI0403
+      CX=CXP(NDASH)                                                     ACXI0404
+      IF (CX.LT.1.D-30) GO TO 30                                        ACXI0405
+      CXN=CXP(N)                                                        ACXI0406
+      IF (CXN.LT.1.D-30) GO TO 30                                       ACXI0407
+      TEMP=CXN/CX                                                       ACXI0408
+      GO TO 40                                                          ACXI0409
+ 30   TEMP=DEXP(-CTE*(1.D0/AN**2-1.D0/ANDASH**2))                       ACXI0410
+ 40   TEMP=(ANDASH/AN)**2*TEMP                                          ACXI0411
+      BK=(A+DENS*C)*TEMP                                                ACXI0412
+      IF (N.LE.20) RETURN                                               ACXI0413
+      IF (NDASH.NE.N+1) RETURN                                          ACXI0414
+      BK=BK+COR(N,1)                                                    ACXI0415
+      RETURN                                                            ACXI0416
+C                                                                       ACXI0417
+C  NDASH LT N                                                           ACXI0418
+ 50   C=COLRAT(NDASH,N,T,TE12)                                          ACXI0419
+      BK=C*DENS                                                         ACXI0420
+      IF (NDASH.NE.N-1) RETURN                                          ACXI0421
+      IF (N.LE.20) RETURN                                               ACXI0422
+      BK=BK+COR(N,2)                                                    ACXI0423
+      RETURN                                                            ACXI0424
+      END                                                               ACXI0425
+C                                                                       ACXI0426
+      FUNCTION CAPPA (T,TL,T32,F)                                       ACXI0427
+C                                                                       ACXI0428
+C  COMPUTES FREE-FREE ABSORPTION COEFFICIENT  CAPPA, GIVEN ELECTRON     ACXI0429
+C  TEMPERATURE (T), LOG(T) (TL), T**1.5 (T32), AND FREQUENCY IN GHZ (F) ACXI0430
+C                                                                       ACXI0431
+      V=0.6529+.6666667*ALOG10(F)-TL                                    ACXI0432
+      IF (V.GT.-2.6) GO TO 10                                           ACXI0433
+      ALIV=-1.1249*V+0.3788                                             ACXI0434
+      GO TO 30                                                          ACXI0435
+ 10   IF (V.GT.-0.25) GO TO 20                                          ACXI0436
+      ALIV=-1.2326*V+0.0987                                             ACXI0437
+      GO TO 30                                                          ACXI0438
+ 20   ALIV=-1.0842*V+0.1359                                             ACXI0439
+ 30   CAPPA=4.646*EXPM1(.047993*F/T)*EXP(2.302585*ALIV)/(F**2.33333*T32)ACXI0440
+      RETURN                                                            ACXI0441
+      END                                                               ACXI0442
+C                                                                       ACXI0443
+      FUNCTION COLGL (N,NDASH,T,TE12)                                   ACXI0444
+C                                                                       ACXI0445
+C  CALCULATES COLLISION RATES FROM LEVEL  N  TO HIGHER LEVEL  NDASH AT  ACXI0446
+C  ELECTRON TEMPERATURE T. TE12 IS SQRT(T). USES GAUSS-LAGUERRE         ACXI0447
+C  INTEGRATION OF CROSS-SECTIONS (FUNCTION CROSS) OVER MAXWELL          ACXI0448
+C  DISTRIBUTION. FUNCTION COLGL IS USED FOR VALUES OUTSIDE THE REGION   ACXI0449
+C  OF VALIDITY OF FUNCTION COLRAT.                                      ACXI0450
+C                                                                       ACXI0451
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0452
+      DIMENSION XGL(10), WGL(10)                                        ACXI0453
+      DOUBLE PRECISION T,TE12                                           ACXI0454
+C     DATA NGL/10/                                                      ACXI0455
+C     DATA XGL/.1377935,.7294545,1.808343,3.401434,5.552496,8.330153,   ACXI0456
+C    A 11.84379,16.27926,21.99659,29.92070/                             ACXI0457
+C     DATA WGL/.3084411,.4011199,.2180683,6.208746E-2,9.501517E-3,      ACXI0458
+C    A 7.530084E-4,2.825923E-5,4.249314E-7,1.839565E-9,9.911827E-13/    ACXI0459
+      DATA XGL/.4157746,2.294280,6.289945,7*0./                         ACXI0460
+      DATA WGL/.7110930,.2785177,1.038926E-2,7*0./                      ACXI0461
+      DATA NGL/3/                                                       ACXI0462
+      BETA=1.58D5/T                                                     ACXI0463
+      EN2=N*N                                                           ACXI0464
+      END2=NDASH*NDASH                                                  ACXI0465
+      DE=1./EN2-1./END2                                                 ACXI0466
+      COLGL=0.                                                          ACXI0467
+      DO 10 I=1,NGL                                                     ACXI0468
+      E=XGL(I)/BETA+DE                                                  ACXI0469
+      COLGL=COLGL+WGL(I)*CROSS(N,NDASH,E)*E*BETA                        ACXI0470
+ 10   CONTINUE                                                          ACXI0471
+      COLGL=COLGL*6.21241E5*SNGL(TE12)*(EN2/END2)                       ACXI0472
+      RETURN                                                            ACXI0473
+      END                                                               ACXI0474
+C                                                                       ACXI0475
+      SUBROUTINE COLION (N,IONZ,T,QI)                                   ACXI0476
+C                                                                       ACXI0477
+C  COMPUTES COLLISIONAL IONIZATION RATE, QI, FROM LEVEL  N  FOR IONS    ACXI0478
+C  OF EFFECTIVE CHARGE  IONZ  AT ELECTRON TEMPERATURE  T.               ACXI0479
+C                                                                       ACXI0480
+C  WHEN CALLED WITH  N=0, COLION COMPUTES AND STORES QUANTITIES WHICH   ACXI0481
+C  DEPEND ONLY UPON TEMPERATURE AND EFFECTIVE CHARGE. IT IS ASSUMED     ACXI0482
+C  THAT  T  AND  IONZ  REMAIN CONSTANT UNTIL THE NEXT CALL WITH  N=0.   ACXI0483
+C                                                                       ACXI0484
+      COMMON /TDEP/ TE32,TE12,CTE                                       ACXI0485
+      DIMENSION EXPX(507)                                               ACXI0486
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0487
+      DOUBLE PRECISION CTE,QI,T,TE12,TE32                               ACXI0488
+      QI=0.D0                                                           ACXI0489
+      IF (N.NE.0) GO TO 20                                              ACXI0490
+C  INITIALIZE                                                           ACXI0491
+      CONS=DFLOAT(IONZ*IONZ)*CTE                                        ACXI0492
+      DO 10 I=21,507                                                    ACXI0493
+ 10   EXPX(I)=EXP(-CONS/FLOAT(I*I))                                     ACXI0494
+      RETURN                                                            ACXI0495
+ 20   IF (N.LE.20) RETURN                                               ACXI0496
+      X=CONS/DFLOAT(N*N)                                                ACXI0497
+      DXP=EXPX(N)                                                       ACXI0498
+      IF (N.GT.507) DXP=EXP(-X)                                         ACXI0499
+      IF (X.LE.1.) GO TO 30                                             ACXI0500
+      E1=((.250621+X*(2.334733+X))/(1.681534+X*(3.330657+X)))*DXP/X     ACXI0501
+      GO TO 40                                                          ACXI0502
+ 30   E1=-.57721566+X*(.9999193+X*(-.24991055+X*(.5519968E-1+X*(-.976004ACXI0503
+     1E-2+X*.107857E-2))))-ALOG(X)                                      ACXI0504
+ 40   EI=DXP*(1.666667-.6666667*X)/X+E1*(.6666667*X-1.)-0.5*E1*E1/DXP   ACXI0505
+      QI=5.444089*EI/SNGL(TE32)                                         ACXI0506
+      RETURN                                                            ACXI0507
+      END                                                               ACXI0508
+C                                                                       ACXI0509
+      FUNCTION COLRAT (N,NP,T,TE12)                                     ACXI0510
+C                                                                       ACXI0511
+C  CALCULATES RATE OF COLLISIONS FROM LEVEL  N  TO HIGHER LEVEL  NP     ACXI0512
+C  AT ELECTRON TEMPERATURE  T.  TE12 IS  SQRT(T). SETS RATE=0 FOR  NP-N ACXI0513
+C  GT 40, BUT THIS IS EASILY MODIFIED.                                  ACXI0514
+C                                                                       ACXI0515
+C  THIS FUNCTION MUST BE INITIALIZED BY BEING CALLED WITH  N=0 BEFORE   ACXI0516
+C  ANY COLLISION RATES ARE COMPUTED.                                    ACXI0517
+C  THEORY: GEE, PERCIVAL, LODGE AND RICHARDS, MNRAS 175, 209-215 (1976) ACXI0518
+C                                                                       ACXI0519
+C  RANGE OF VALIDITY OF GPLR RATES IS  10**6/N**2 LT T LLT 3*10**9      ACXI0520
+C  OUTSIDE THIS RANGE, NUMERICAL INTEGRATION OF THE GPLR CROSS-SECTIONS ACXI0521
+C  IS RESORTED TO. THESE CROSS-SECTIONS ARE VALID DOWN TO ENERGIES OF   ACXI0522
+C  4/N**2 RYDBERGS; THE CROSS-SECTION FORMULA CAN BE USED AT LOWER      ACXI0523
+C  ENERGIES FOR BN CALCULATIONS, THE INACCURACY IN THE CROSS-SECTIONS   ACXI0524
+C  HAVING LITTLE EFFECT ON THE BN'S.                                    ACXI0525
+C                                                                       ACXI0526
+      COMMON /COLINF/ AL18S4(506),S23TRM(506)                           ACXI0527
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0528
+      DOUBLE PRECISION DRT,T,TE12                                       ACXI0529
+      REAL L,J1,J2,J3,J4                                                ACXI0530
+      IF (N.LE.0) GO TO 60                                              ACXI0531
+      COLRAT=0.                                                         ACXI0532
+      IS=NP-N                                                           ACXI0533
+      IF (IS.GT.40) RETURN                                              ACXI0534
+      S=IS                                                              ACXI0535
+      EN2=N*N                                                           ACXI0536
+      IF (SNGL(T).LT.1.E6/EN2) GO TO 50                                 ACXI0537
+      EN=N                                                              ACXI0538
+      ENP=NP                                                            ACXI0539
+      IPOW=1+IS+IS                                                      ACXI0540
+      POW=IPOW                                                          ACXI0541
+      ENNP=N*NP                                                         ACXI0542
+      BETA=1.58D5/T                                                     ACXI0543
+      BETA1=1.4*SQRT(ENNP)                                              ACXI0544
+      BETRT=BETA1/BETA                                                  ACXI0545
+      BETSUM=BETA1+BETA                                                 ACXI0546
+      F1=0.2*S/ENNP                                                     ACXI0547
+      IF (F1.GT.0.02) GO TO 10                                          ACXI0548
+      F1=1.-POW*F1                                                      ACXI0549
+      GO TO 20                                                          ACXI0550
+ 10   F1=(1.-F1)**IPOW                                                  ACXI0551
+ 20   A=(2.666667/S)*(ENP/(S*EN))**3*S23TRM(IS)*F1                      ACXI0552
+      L=0.85/BETA                                                       ACXI0553
+      L=ALOG((1.+0.53*L*L*ENNP)/(1.+0.4*L))                             ACXI0554
+      J1=1.333333*A*L*BETRT/BETSUM                                      ACXI0555
+      DRT=DSQRT(2.D0-DFLOAT(N*N)/DFLOAT(NP*NP))                         ACXI0556
+      F1=0.3*S/ENNP                                                     ACXI0557
+      IF (F1.GT.0.02) GO TO 30                                          ACXI0558
+      F1=1.-POW*F1                                                      ACXI0559
+      GO TO 40                                                          ACXI0560
+ 30   F1=(1.-F1)**IPOW                                                  ACXI0561
+ 40   J2=0.                                                             ACXI0562
+      ARG=BETA/BETA1                                                    ACXI0563
+      IF (ARG.LE.150.) J2=1.777778*F1*(ENP*SNGL(DRT+1.D0)/((EN+ENP)*S))*ACXI0564
+     1*3*EXP(-ARG)/(BETA/(1.-AL18S4(IS)))                               ACXI0565
+      XI=2./(EN2*SNGL(DRT-1.D0))                                        ACXI0566
+      Z=0.75*XI*BETSUM                                                  ACXI0567
+      EXPZ=0.                                                           ACXI0568
+      IF (Z.LE.150.) EXPZ=EXP(-Z)                                       ACXI0569
+      J4=2./(Z*(2.+Z*(1.+EXPZ)))                                        ACXI0570
+      J3=0.25*(EN2*XI/ENP)**3*J4*ALOG(1.+0.5*BETA*XI)/BETSUM            ACXI0571
+      COLRAT=EN2*EN2*(J1+J2+J3)/SNGL(TE12)**3                           ACXI0572
+      RETURN                                                            ACXI0573
+C                                                                       ACXI0574
+C  GPLR COLLISION RATE FORMULAS INVALID AT LOW TEMPERATURES. INTEGRATE  ACXI0575
+C  CROSS-SECTIONS.                                                      ACXI0576
+C                                                                       ACXI0577
+ 50   COLRAT=COLGL(N,NP,T,TE12)                                         ACXI0578
+      RETURN                                                            ACXI0579
+C                                                                       ACXI0580
+C  INITIALIZE                                                           ACXI0581
+C                                                                       ACXI0582
+ 60   DO 70 I=1,506                                                     ACXI0583
+      Z=I                                                               ACXI0584
+      AL18S4(I)=ALOG(18.*Z)/(4.*Z)                                      ACXI0585
+      S23TRM(I)=(0.184-0.04*Z**(-.6666667))                             ACXI0586
+ 70   CONTINUE                                                          ACXI0587
+      COLRAT=0.                                                         ACXI0588
+      RETURN                                                            ACXI0589
+      END                                                               ACXI0590
+C                                                                       ACXI0591
+      FUNCTION COR (N,ISW)                                              ACXI0592
+C                                                                       ACXI0593
+C  CORRECTION TO RATE OF POPULATION OF LEVEL N DUE TO RADIATION FIELD.  ACXI0594
+C  SEE WRITEUP. THIS SUBPROGRAM MAY BE REPLACED BY THE USER IF OTHER    ACXI0595
+C  THAN A DILUTE BLACKBODY RADIATION FIELD IS REQUIRED.                 ACXI0596
+C                                                                       ACXI0597
+C  THE MAIN PROGRAM CALLS COR ONCE WITH ISW=0 BEFORE STARTING THE       ACXI0598
+C  CALCULATIONS. ANY INITIALIZATION (INCLUDING THE READING OF DATA IF   ACXI0599
+C  REQUIRED) SHOULD BE CARRIED OUT DURING THIS FIRST CALL.              ACXI0600
+C                                                                       ACXI0601
+C  COMPUTES TERMS OF                                                    ACXI0602
+C  D(NU)RHO(NU)(N(N+1)B(N+1,N)+N(N-1)B(N-1,N)-N(N)(B(N,N-1)+B(N,N+1))   ACXI0603
+C  WITH REMOVED FACTOR                                                  ACXI0604
+C  (C/4PI)(H*H/2PI M KT)**3/2 N*N NE NI EXP(CHI1/N*N KT)                ACXI0605
+C                                                                       ACXI0606
+      COMMON /EXPDAT/ CXP(707),MAXN                                     ACXI0607
+      COMMON /INOUT/ IREAD,IWRITE,IPUNCH                                ACXI0608
+      DIMENSION DILT(508), DX(508)                                      ACXI0609
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0610
+      DOUBLE PRECISION A,AM,AP,COR,CXP,EX,G                             ACXI0611
+      LOGICAL NOFLD                                                     ACXI0612
+      DATA DILT/508*0.5/,NOFLD/.FALSE./                                 ACXI0613
+      IF (ISW.GT.0) GO TO 40                                            ACXI0614
+      READ (IREAD,90) TBCK,EBCK                                         ACXI0615
+      IF (EBCK.EQ.0. .OR. TBCK.EQ.0.) NOFLD=.TRUE.                      ACXI0616
+      IF (.NOT.NOFLD) GO TO 10                                          ACXI0617
+      WRITE (IWRITE,100)                                                ACXI0618
+      GO TO 80                                                          ACXI0619
+ 10   WRITE (IWRITE,110) TBCK,EBCK                                      ACXI0620
+      C15=15.778E4/TBCK                                                 ACXI0621
+      MAXP=MAXN+1                                                       ACXI0622
+      DO 20 I=1,MAXP                                                    ACXI0623
+      AI=I*(I+1)                                                        ACXI0624
+      ARG=C15*FLOAT(2*I+1)/AI**2                                        ACXI0625
+      DX(I)=EXPM1(ARG)                                                  ACXI0626
+ 20   CONTINUE                                                          ACXI0627
+      IF (EBCK.GE.0.9999E10) GO TO 80                                   ACXI0628
+      TBCK32=TBCK*SQRT(TBCK)                                            ACXI0629
+      TL=ALOG10(TBCK)                                                   ACXI0630
+      DO 30 I=1,MAXP                                                    ACXI0631
+      FREQG=6.58E6/FLOAT(I)**3                                          ACXI0632
+      TOW=EBCK*CAPPA(TBCK,TL,TBCK32,FREQG)                              ACXI0633
+      IF (TOW.LE.20.) DILT(I)=-0.5*EXPM1(-TOW)                          ACXI0634
+ 30   CONTINUE                                                          ACXI0635
+      GO TO 80                                                          ACXI0636
+ 40   IF (NOFLD) GO TO 80                                               ACXI0637
+      IF (N.GT.MAXN) WRITE (IWRITE,120) N                               ACXI0638
+      GO TO (50,60,70), ISW                                             ACXI0639
+C  N(N+1)B(N+1,N)                                                       ACXI0640
+ 50   CALL RAD (A,N,N+1,G)                                              ACXI0641
+      EX=DX(N)                                                          ACXI0642
+      COR=(DFLOAT((N+1)**2)/DFLOAT(N*N))*DILT(N)*A/(EX*(EX+1.D0))       ACXI0643
+      RETURN                                                            ACXI0644
+C  N(N-1)B(N-1,N)                                                       ACXI0645
+ 60   CALL RAD (A,N-1,N,G)                                              ACXI0646
+      EX=DX(N-1)                                                        ACXI0647
+      COR=DILT(N)*A/(EX/(EX+1.D0))                                      ACXI0648
+      RETURN                                                            ACXI0649
+C  N(N)(B(N,N-1) + B(N,N+1))                                            ACXI0650
+ 70   CALL RAD (AM,N-1,N,G)                                             ACXI0651
+      CALL RAD (AP,N,N+1,EX)                                            ACXI0652
+      EX=DX(N-1)                                                        ACXI0653
+      G=DX(N)                                                           ACXI0654
+      COR=-DILT(N)*(AM/EX+(DFLOAT((N+1)**2)/DFLOAT(N*N))*AP/G)          ACXI0655
+      RETURN                                                            ACXI0656
+ 80   COR=0.D0                                                          ACXI0657
+      RETURN                                                            ACXI0658
+C                                                                       ACXI0659
+ 90   FORMAT (2G10.3)                                                   ACXI0660
+ 100  FORMAT (21H0NO BACKGROUND FIELD.//)                               ACXI0661
+ 110  FORMAT (32H0RADIATION FIELD - TEMPERATURE =,1PG12.5,21HK, EMISSIONACXI0662
+     1 MEASURE =,G12.5//)                                               ACXI0663
+ 120  FORMAT (32H0*** COR CALLED WITH N TOO LARGE,I6/)                  ACXI0664
+      END                                                               ACXI0665
+C                                                                       ACXI0666
+C                                                                       ACXI0667
+      FUNCTION CROSS (N,NP,E)                                           ACXI0668
+C                                                                       ACXI0669
+C  COMPUTES CROSS-SECTION FOR TRANSITION FROM LEVEL  N  TO HIGHER LEVEL ACXI0670
+C  NP DUE TO COLLISION WITH ELECTRON OF ENERGY  E.                      ACXI0671
+C                                                                       ACXI0672
+C  THE FORMULA IS VALID FOR ENERGIES IN THE RANGE 4/N**2 LT E LLT 137**2ACXI0673
+C  THIS SUBPROGRAM DOES NOT CHECK THAT  E  IS WITHIN THIS RANGE.        ACXI0674
+C                                                                       ACXI0675
+C  THEORY: GEE, PERCIVAL, LODGE AND RICHARDS, MNRAS 175, 209-215 (1976) ACXI0676
+C                                                                       ACXI0677
+      COMMON /COLINF/ AL18S4(506),S23TRM(506)                           ACXI0678
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0679
+      DOUBLE PRECISION DRT                                              ACXI0680
+      REAL L                                                            ACXI0681
+      C2(X,Y)=X*X*ALOG(1.+.6666667*X)/(Y+Y+1.5*X)                       ACXI0682
+      EN=N                                                              ACXI0683
+      ENP=NP                                                            ACXI0684
+      IS=NP-N                                                           ACXI0685
+      IPOW=1+IS+IS                                                      ACXI0686
+      POW=IPOW                                                          ACXI0687
+      S=IS                                                              ACXI0688
+      ENNP=N*NP                                                         ACXI0689
+      EENNP=E*E*ENNP                                                    ACXI0690
+      EN2=N*N                                                           ACXI0691
+      ENN=E*EN2                                                         ACXI0692
+      D=0.2*S/ENNP                                                      ACXI0693
+      IF (D.GT.0.02) GO TO 10                                           ACXI0694
+      D=1.-POW*D                                                        ACXI0695
+      GO TO 20                                                          ACXI0696
+ 10   D=(1.-D)**IPOW                                                    ACXI0697
+ 20   A=(2.666667/S)*(ENP/(S*EN))**3*S23TRM(IS)*D                       ACXI0698
+      D=0.                                                              ACXI0699
+      ARG=1./EENNP                                                      ACXI0700
+      IF (ARG.LT.150.) D=EXP(-ARG)                                      ACXI0701
+      L=ALOG((1.+0.53*EENNP)/(1.+0.4*E))                                ACXI0702
+      F=(1.-0.3*S*D/ENNP)**IPOW                                         ACXI0703
+      G=0.5*(ENN/ENP)**3                                                ACXI0704
+      Y=1./(1.-D*AL18S4(IS))                                            ACXI0705
+      DRT=DSQRT(2.D0-DFLOAT(N*N)/DFLOAT(NP*NP))                         ACXI0706
+      XP=2./(ENN*SNGL(DRT+1.D0))                                        ACXI0707
+      XM=2./(ENN*SNGL(DRT-1.D0))                                        ACXI0708
+      H=C2(XM,Y)-C2(XP,Y)                                               ACXI0709
+      CROSS=8.797016E-17*(EN2*EN2/E)*(A*D*L+F*G*H)                      ACXI0710
+      RETURN                                                            ACXI0711
+      END                                                               ACXI0712
+C                                                                       ACXI0713
+      FUNCTION DMJ1 (K,KM)                                              ACXI0714
+      COMMON /FITDAT/ AFIT(4,4),IVAL(4),NFIT                            ACXI0715
+      COMMON /HIGHER/ STORE1(224,4),STORE2(224),VAL(24),B,STORE3(224,5),ACXI0716
+     1RTVAL(24),LIMIT                                                   ACXI0717
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0718
+      DOUBLE PRECISION AFIT,B,DMJ1,RTVAL,STORE1,STORE2,STORE3,VAL       ACXI0719
+      DMJ1=0.D0                                                         ACXI0720
+      DO 10 J=1,NFIT                                                    ACXI0721
+ 10   DMJ1=DMJ1+AFIT(J,KM)*STORE1(K,J)                                  ACXI0722
+      RETURN                                                            ACXI0723
+      END                                                               ACXI0724
+C                                                                       ACXI0725
+      FUNCTION DMJ2 (K)                                                 ACXI0726
+      COMMON /FITDAT/ AFIT(4,4),IVAL(4),NFIT                            ACXI0727
+      COMMON /HIGHER/ STORE1(224,4),STORE2(224),VAL(24),B,STORE3(224,5),ACXI0728
+     1RTVAL(24),LIMIT                                                   ACXI0729
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0730
+      DOUBLE PRECISION AFIT,B,DMJ2,RTVAL,STORE1,STORE2,STORE3,SUM,TOT,VAACXI0731
+     1L                                                                 ACXI0732
+      DMJ2=0.D0                                                         ACXI0733
+      TOT=0.D0                                                          ACXI0734
+      DO 20 J=1,NFIT                                                    ACXI0735
+      SUM=0.D0                                                          ACXI0736
+      DO 10 I=1,NFIT                                                    ACXI0737
+ 10   SUM=SUM+AFIT(J,I)                                                 ACXI0738
+ 20   TOT=TOT+SUM*STORE1(K,J)                                           ACXI0739
+      DMJ2=1.D0-TOT                                                     ACXI0740
+      RETURN                                                            ACXI0741
+      END                                                               ACXI0742
+C                                                                       ACXI0743
+      FUNCTION DPHI (IQ,LG,ITAU,N)                                      ACXI0744
+C                                                                       ACXI0745
+C  LAGRANGIAN INTERPOLATION                                             ACXI0746
+C                                                                       ACXI0747
+      DIMENSION IQ(8)                                                   ACXI0748
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0749
+      DOUBLE PRECISION A,DPHI                                           ACXI0750
+      DPHI=0.D0                                                         ACXI0751
+      DO 20 M=1,LG                                                      ACXI0752
+      IF (M.EQ.ITAU) GO TO 20                                           ACXI0753
+      A=1.D0                                                            ACXI0754
+      DO 10 L=1,LG                                                      ACXI0755
+      IF (L.EQ.ITAU.OR.L.EQ.M) GO TO 10                                 ACXI0756
+      A=A*DFLOAT(N-IQ(L))                                               ACXI0757
+ 10   CONTINUE                                                          ACXI0758
+      DPHI=DPHI+A                                                       ACXI0759
+ 20   CONTINUE                                                          ACXI0760
+      RETURN                                                            ACXI0761
+      END                                                               ACXI0762
+C                                                                       ACXI0763
+C                                                                       ACXI0764
+      FUNCTION EXPM1 (X)                                                ACXI0765
+C                                                                       ACXI0766
+C  COMPUTES  EXP(X)-1  ACCURATELY, EVEN FOR SMALL  X                    ACXI0767
+C                                                                       ACXI0768
+      IF (ABS(X).LE.0.1) GO TO 10                                       ACXI0769
+      EXPM1=EXP(X)-1.                                                   ACXI0770
+      RETURN                                                            ACXI0771
+ 10   EXPM1=X*(.9999997+X*(0.5+X*(.1667708+X*.4166667E-1)))             ACXI0772
+      RETURN                                                            ACXI0773
+      END                                                               ACXI0774
+C                                                                       ACXI0775
+      SUBROUTINE HELPME (AID,KM)                                        ACXI0776
+      COMMON /HIGHER/ STORE1(224,4),STORE2(224),VAL(24),B,STORE3(224,5),ACXI0777
+     1RTVAL(24),LIMIT                                                   ACXI0778
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0779
+      DOUBLE PRECISION AID,B,C,POL,RTVAL,STORE1,STORE2,STORE3,SUM,VAL,Y ACXI0780
+      SUM=0.D0                                                          ACXI0781
+      DO 10 K=1,LIMIT                                                   ACXI0782
+      C=STORE2(K)*STORE3(K,KM)                                          ACXI0783
+ 10   SUM=SUM+C                                                         ACXI0784
+      SUM=SUM-0.5D0*C                                                   ACXI0785
+      Y=  .6170614899993600D-2*(POL( 1,KM)+POL( 2,KM))                  ACXI0786
+      Y=Y+.1426569431446683D-1*(POL( 3,KM)+POL( 4,KM))                  ACXI0787
+      Y=Y+.2213871940870990D-1*(POL( 5,KM)+POL( 6,KM))                  ACXI0788
+      Y=Y+.2964929245771839D-1*(POL( 7,KM)+POL( 8,KM))                  ACXI0789
+      Y=Y+.3667324070554015D-1*(POL( 9,KM)+POL(10,KM))                  ACXI0790
+      Y=Y+.4309508076597664D-1*(POL(11,KM)+POL(12,KM))                  ACXI0791
+      Y=Y+.4880932605205694D-1*(POL(13,KM)+POL(14,KM))                  ACXI0792
+      Y=Y+.5372213505798282D-1*(POL(15,KM)+POL(16,KM))                  ACXI0793
+      Y=Y+.5775283402686280D-1*(POL(17,KM)+POL(18,KM))                  ACXI0794
+      Y=Y+.6083523646390170D-1*(POL(19,KM)+POL(20,KM))                  ACXI0795
+      Y=Y+.6291872817341415D-1*(POL(21,KM)+POL(22,KM))                  ACXI0796
+      Y=Y+.6396909767337608D-1*(POL(23,KM)+POL(24,KM))                  ACXI0797
+      AID=SUM+B*Y                                                       ACXI0798
+      RETURN                                                            ACXI0799
+      END                                                               ACXI0800
+C                                                                       ACXI0801
+      SUBROUTINE INTERP (M,CO,VAL,DVAL,IC,IR)                           ACXI0802
+C                                                                       ACXI0803
+C  COMPUTES SOLUTIONS AT ALL  N  FROM THOSE OBTAINED AT THE CONDENSED   ACXI0804
+C  POINTS                                                               ACXI0805
+C                                                                       ACXI0806
+      DIMENSION CO(75), DVAL(507), IQ(8), M(75), VAL(507)               ACXI0807
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0808
+      DOUBLE PRECISION CO,COT,DFL,DPHI,DVAL,FL,PHI,PHITAU,VAL           ACXI0809
+C                                                                       ACXI0810
+      LG=2*(IR+1)                                                       ACXI0811
+      IB=IC-IR                                                          ACXI0812
+      IBB=IB-1                                                          ACXI0813
+      ICC=IC-1                                                          ACXI0814
+C                                                                       ACXI0815
+      K=M(IC)                                                           ACXI0816
+      DO 10 I=1,K                                                       ACXI0817
+      VAL(I)=0.D0                                                       ACXI0818
+      DVAL(I)=0.D0                                                      ACXI0819
+ 10   CONTINUE                                                          ACXI0820
+C                                                                       ACXI0821
+      DO 20 IT=1,IC                                                     ACXI0822
+      IA=IT                                                             ACXI0823
+      MIT=M(IT)                                                         ACXI0824
+      VAL(MIT)=CO(IT)                                                   ACXI0825
+      IF ((M(IT+1)-MIT).GT.1) GO TO 30                                  ACXI0826
+ 20   CONTINUE                                                          ACXI0827
+C                                                                       ACXI0828
+ 30   IF (IA.EQ.IC) GO TO 90                                            ACXI0829
+      IF (IA.EQ.IB) GO TO 60                                            ACXI0830
+C                                                                       ACXI0831
+      DO 50 IT=IA,IBB                                                   ACXI0832
+      N1=M(IT)+1                                                        ACXI0833
+      N2=M(IT+1)                                                        ACXI0834
+      ITR1=IT-IR-1                                                      ACXI0835
+      DO 40 ITAU=1,LG                                                   ACXI0836
+      IND=ITR1+ITAU                                                     ACXI0837
+ 40   IQ(ITAU)=M(IND)                                                   ACXI0838
+      DO 50 ITAU=1,LG                                                   ACXI0839
+      PHITAU=1.D0/PHI(IQ,LG,ITAU,IQ(ITAU))                              ACXI0840
+      DO 50 N=N1,N2                                                     ACXI0841
+      FL=PHI(IQ,LG,ITAU,N)*PHITAU                                       ACXI0842
+      DFL=DPHI(IQ,LG,ITAU,N)*PHITAU                                     ACXI0843
+      IND=ITR1+ITAU                                                     ACXI0844
+      COT=CO(IND)                                                       ACXI0845
+      VAL(N)=VAL(N)+FL*COT                                              ACXI0846
+ 50   DVAL(N)=DVAL(N)+DFL*COT                                           ACXI0847
+ 60   IF (IR.EQ.0) GO TO 90                                             ACXI0848
+C                                                                       ACXI0849
+      ICLG=IC-LG                                                        ACXI0850
+      DO 70 ITAU=1,LG                                                   ACXI0851
+      IND=ICLG+ITAU                                                     ACXI0852
+ 70   IQ(ITAU)=M(IND)                                                   ACXI0853
+      DO 80 ITAU=1,LG                                                   ACXI0854
+      PHITAU=1.D0/PHI(IQ,LG,ITAU,IQ(ITAU))                              ACXI0855
+      DO 80 IT=IB,ICC                                                   ACXI0856
+      N1=M(IT)+1                                                        ACXI0857
+      N2=M(IT+1)                                                        ACXI0858
+      DO 80 N=N1,N2                                                     ACXI0859
+      FL=PHI(IQ,LG,ITAU,N)*PHITAU                                       ACXI0860
+      DFL=DPHI(IQ,LG,ITAU,N)*PHITAU                                     ACXI0861
+      IND=ICLG+ITAU                                                     ACXI0862
+      COT=CO(IND)                                                       ACXI0863
+      VAL(N)=VAL(N)+FL*COT                                              ACXI0864
+ 80   DVAL(N)=DVAL(N)+DFL*COT                                           ACXI0865
+C                                                                       ACXI0866
+ 90   RETURN                                                            ACXI0867
+      END                                                               ACXI0868
+C                                                                       ACXI0869
+      SUBROUTINE JMD (SK,CO,MVAL,IC)                                    ACXI0870
+      COMMON /FITDAT/ AFIT(4,4),IVAL(4),NFIT                            ACXI0871
+      COMMON /GAUSS/ VALUE(12)                                          ACXI0872
+      COMMON /HIGHER/ STORE1(224,4),STORE2(224),VAL(24),B,STORE3(224,5),ACXI0873
+     1RTVAL(24),LIMIT                                                   ACXI0874
+      COMMON /PARMS/ DENS,T,ITM                                         ACXI0875
+      DIMENSION AZ(4), CO(75), IND(4,2), IPIV(4), MVAL(75), SK(75,75)   ACXI0876
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0877
+      DOUBLE PRECISION A,AC,AFIT,AID,AJ,AK,AKK,AZ,B,BK,CO,D,DENS,DMJ1,DMACXI0878
+     1J2,RTVAL,SK,SOS,STORE1,STORE2,STORE3,T,VAL,VALUE                  ACXI0879
+      SOS(I,A)=DSQRT(-A)**(2*I+ITM)/DLOG(-A)                            ACXI0880
+      LIMIT=200                                                         ACXI0881
+      NG=24                                                             ACXI0882
+      DO 10 J=1,NFIT                                                    ACXI0883
+      K=IVAL(J)                                                         ACXI0884
+      AJ=-1.D0/DFLOAT(MVAL(K))**2                                       ACXI0885
+      DO 10 I=1,NFIT                                                    ACXI0886
+ 10   AFIT(J,I)=SOS(I,AJ)                                               ACXI0887
+      CALL MATINV (AFIT,NFIT,AZ,0,D,IRROR,4,IPIV,IND)                   ACXI0888
+      B=1.D0/DFLOAT(MVAL(IC)+LIMIT)**2                                  ACXI0889
+      A=-0.5D0*B                                                        ACXI0890
+      NH=NG/2                                                           ACXI0891
+      DO 20 K=1,NH                                                      ACXI0892
+      VAL(2*K-1)=A+VALUE(K)*B                                           ACXI0893
+ 20   VAL(2*K)=A-VALUE(K)*B                                             ACXI0894
+      DO 30 K=1,LIMIT                                                   ACXI0895
+      A=MVAL(IC)+K                                                      ACXI0896
+      AC=-1.D0/A**2                                                     ACXI0897
+      DO 30 J=1,NFIT                                                    ACXI0898
+ 30   STORE1(K,J)=SOS(J,AC)                                             ACXI0899
+      DO 40 K=1,NG                                                      ACXI0900
+      DO 40 J=1,NFIT                                                    ACXI0901
+      INP=K+LIMIT                                                       ACXI0902
+ 40   STORE1(INP,J)=SOS(J,VAL(K))                                       ACXI0903
+      KK=LIMIT+NG                                                       ACXI0904
+      DO 60 K=1,KK                                                      ACXI0905
+      DO 50 J=1,NFIT                                                    ACXI0906
+ 50   STORE3(K,J)=DMJ1(K,J)                                             ACXI0907
+ 60   STORE3(K,NFIT+1)=DMJ2(K)                                          ACXI0908
+      DO 100 J=1,IC                                                     ACXI0909
+      I=MVAL(J)                                                         ACXI0910
+      DO 70 K=1,LIMIT                                                   ACXI0911
+      KK=MVAL(IC)+K                                                     ACXI0912
+      AKK=KK                                                            ACXI0913
+ 70   STORE2(K)=BK(I,KK,0)                                              ACXI0914
+      DO 80 K=1,NG                                                      ACXI0915
+      AK=DSQRT(-1.D0/VAL(K))                                            ACXI0916
+      RTVAL(K)=AK**3*0.5D0                                              ACXI0917
+      KK=AK                                                             ACXI0918
+      INP=K+LIMIT                                                       ACXI0919
+      STORE2(INP)=BK(I,KK,0)                                            ACXI0920
+ 80   CONTINUE                                                          ACXI0921
+      CALL HELPME (AID,NFIT+1)                                          ACXI0922
+      CO(J)=CO(J)-AID                                                   ACXI0923
+      DO 90 KM=1,NFIT                                                   ACXI0924
+      CALL HELPME (AID,KM)                                              ACXI0925
+      L=IVAL(KM)                                                        ACXI0926
+ 90   SK(J,L)=SK(J,L)+AID                                               ACXI0927
+ 100  CONTINUE                                                          ACXI0928
+      RETURN                                                            ACXI0929
+      END                                                               ACXI0930
+C                                                                       ACXI0931
+      SUBROUTINE MATINV (A,N,B,L,D,IRROR,NDA,IPIV,IND)                  ACXI0932
+      DIMENSION A(NDA,NDA), B(NDA), IND(NDA,2), IPIV(NDA)               ACXI0933
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI0934
+      DOUBLE PRECISION A,AMAX,ATEMP,B,D                                 ACXI0935
+C                                                                       ACXI0936
+C     SOLVES SIMULTANEOUS EQUATIONS IF L=1                              ACXI0937
+C                                                                       ACXI0938
+C     INVERTS MATRIX A IF L=0                                           ACXI0939
+C                                                                       ACXI0940
+C     SOLUTIONS ARE RETURNED IN B                                       ACXI0941
+C                                                                       ACXI0942
+      M=IABS(L)                                                         ACXI0943
+      D=1.D0                                                            ACXI0944
+      DO 10 I=1,N                                                       ACXI0945
+ 10   IPIV(I)=0                                                         ACXI0946
+      DO 190 I=1,N                                                      ACXI0947
+      AMAX=0.D0                                                         ACXI0948
+      DO 60 J=1,N                                                       ACXI0949
+      IF (IPIV(J)) 70,20,60                                             ACXI0950
+ 20   DO 50 K=1,N                                                       ACXI0951
+      IF (DABS(A(J,K)).LT.1.D-50) A(J,K)=0.D0                           ACXI0952
+      IF (IPIV(K)-1) 30,50,70                                           ACXI0953
+ 30   IF (DABS(A(J,K))-AMAX) 50,50,40                                   ACXI0954
+ 40   IROW=J                                                            ACXI0955
+      ICOL=K                                                            ACXI0956
+      AMAX=DABS(A(J,K))                                                 ACXI0957
+ 50   CONTINUE                                                          ACXI0958
+ 60   CONTINUE                                                          ACXI0959
+      IPIV(ICOL)=IPIV(ICOL)+1                                           ACXI0960
+      IF (AMAX-1.D-50) 70,70,80                                         ACXI0961
+ 70   IRROR=1                                                           ACXI0962
+      RETURN                                                            ACXI0963
+ 80   IF (IROW-ICOL) 90,120,90                                          ACXI0964
+ 90   D=-D                                                              ACXI0965
+      DO 100 K=1,N                                                      ACXI0966
+      AMAX=A(IROW,K)                                                    ACXI0967
+      A(IROW,K)=A(ICOL,K)                                               ACXI0968
+ 100  A(ICOL,K)=AMAX                                                    ACXI0969
+      IF (M) 120,120,110                                                ACXI0970
+ 110  AMAX=B(IROW)                                                      ACXI0971
+      B(IROW)=B(ICOL)                                                   ACXI0972
+      B(ICOL)=AMAX                                                      ACXI0973
+ 120  IND(I,1)=IROW                                                     ACXI0974
+      IND(I,2)=ICOL                                                     ACXI0975
+      AMAX=A(ICOL,ICOL)                                                 ACXI0976
+      A(ICOL,ICOL)=1.D0                                                 ACXI0977
+      DO 130 K=1,N                                                      ACXI0978
+ 130  A(ICOL,K)=A(ICOL,K)/AMAX                                          ACXI0979
+      IF (M) 150,150,140                                                ACXI0980
+ 140  B(ICOL)=B(ICOL)/AMAX                                              ACXI0981
+ 150  DO 190 J=1,N                                                      ACXI0982
+      IF (J-ICOL) 160,190,160                                           ACXI0983
+ 160  AMAX=A(J,ICOL)                                                    ACXI0984
+      A(J,ICOL)=0.D0                                                    ACXI0985
+      DO 170 K=1,N                                                      ACXI0986
+      ATEMP=A(ICOL,K)*AMAX                                              ACXI0987
+ 170  A(J,K)=A(J,K)-ATEMP                                               ACXI0988
+      IF (M) 190,190,180                                                ACXI0989
+ 180  B(J)=B(J)-B(ICOL)*AMAX                                            ACXI0990
+ 190  CONTINUE                                                          ACXI0991
+      IF (L) 200,200,240                                                ACXI0992
+ 200  DO 230 I=1,N                                                      ACXI0993
+      J=N+1-I                                                           ACXI0994
+      IF (IND(J,1)-IND(J,2)) 210,230,210                                ACXI0995
+ 210  IROW=IND(J,1)                                                     ACXI0996
+      ICOL=IND(J,2)                                                     ACXI0997
+      DO 220 K=1,N                                                      ACXI0998
+      AMAX=A(K,IROW)                                                    ACXI0999
+      A(K,IROW)=A(K,ICOL)                                               ACXI1000
+ 220  A(K,ICOL)=AMAX                                                    ACXI1001
+ 230  CONTINUE                                                          ACXI1002
+ 240  IRROR=0                                                           ACXI1003
+      RETURN                                                            ACXI1004
+      END                                                               ACXI1005
+C                                                                       ACXI1006
+      FUNCTION PHI (IQ,LG,ITAU,N)                                       ACXI1007
+C                                                                       ACXI1008
+C  LAGRANGIAN INTERPOLATION                                             ACXI1009
+C                                                                       ACXI1010
+      DIMENSION IQ(8)                                                   ACXI1011
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1012
+      DOUBLE PRECISION PHI                                              ACXI1013
+      PHI=1.D0                                                          ACXI1014
+      DO 10 L=1,LG                                                      ACXI1015
+      IF (L.EQ.ITAU) GO TO 10                                           ACXI1016
+      PHI=PHI*DFLOAT(N-IQ(L))                                           ACXI1017
+ 10   CONTINUE                                                          ACXI1018
+      RETURN                                                            ACXI1019
+      END                                                               ACXI1020
+C                                                                       ACXI1021
+      FUNCTION POL (K,KM)                                               ACXI1022
+      COMMON /HIGHER/ STORE1(224,4),STORE2(224),VAL(24),B,STORE3(224,5),ACXI1023
+     1RTVAL(24),LIMIT                                                   ACXI1024
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1025
+      DOUBLE PRECISION B,POL,RTVAL,STORE1,STORE2,STORE3,VAL             ACXI1026
+      IND=K+LIMIT                                                       ACXI1027
+      POL=RTVAL(K)*STORE3(IND,KM)*STORE2(IND)                           ACXI1028
+      RETURN                                                            ACXI1029
+      END                                                               ACXI1030
+C                                                                       ACXI1031
+      SUBROUTINE RAD (A,N,NDASH,G)                                      ACXI1032
+C                                                                       ACXI1033
+C  COMPUTES EINSTEIN RADIATIVE RATES A AND GAUNT FACTORS G FOR          ACXI1034
+C  TRANSITIONS FROM  NDASH  TO  N                                       ACXI1035
+C                                                                       ACXI1036
+      COMMON /GAUNTS/ GAUNT(50,22),IXV(12)                              ACXI1037
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1038
+      DOUBLE PRECISION A,ALF2,EN,EN2,END2,G,TERM1,TERM2,TERM3           ACXI1039
+C  ARRAY GAUNT IS NOT DOUBLE PRECISION                                  ACXI1040
+      EN=N                                                              ACXI1041
+      EN2=N*N                                                           ACXI1042
+      END2=NDASH*NDASH                                                  ACXI1043
+      NDMN=NDASH-N                                                      ACXI1044
+      IF (NDMN.GT.50) GO TO 30                                          ACXI1045
+      IF (N.LE.10) GO TO 20                                             ACXI1046
+      DO 10 J=2,12                                                      ACXI1047
+      IVJ=IXV(J)                                                        ACXI1048
+      IVJ1=IXV(J-1)                                                     ACXI1049
+      IF (N.GT.IVJ) GO TO 10                                            ACXI1050
+      P=1./FLOAT(IVJ-IVJ1)                                              ACXI1051
+      Q=FLOAT(IVJ-N)*P                                                  ACXI1052
+      P=FLOAT(N-IVJ1)*P                                                 ACXI1053
+      G=Q*GAUNT(NDMN,J+9)+GAUNT(NDMN,J+10)*P                            ACXI1054
+      GO TO 40                                                          ACXI1055
+ 10   CONTINUE                                                          ACXI1056
+ 20   G=GAUNT(NDMN,N)                                                   ACXI1057
+      GO TO 40                                                          ACXI1058
+ 30   ALF2=(EN2/END2)                                                   ACXI1059
+      TERM1=(1.D0-ALF2)                                                 ACXI1060
+      TERM1=(TERM1*EN)**.666666666666666D0                              ACXI1061
+      TERM2=0.1728D0*(1.D0+ALF2)/TERM1                                  ACXI1062
+      TERM3=0.0496D0*(1.D0-1.3333333333333D0*ALF2+ALF2*ALF2)/TERM1**2   ACXI1063
+      G=1.D0-TERM2-TERM3                                                ACXI1064
+ 40   A=G*15.7457D9/(EN*(END2-EN2)*DFLOAT(NDASH)*END2)                  ACXI1065
+      RETURN                                                            ACXI1066
+      END                                                               ACXI1067
+C                                                                       ACXI1068
+      SUBROUTINE RADCOL (T,MVAL,IC,NMIN)                                ACXI1069
+      COMMON /EXPDAT/ CXP(707),MAXN                                     ACXI1070
+      COMMON /RCRATS/ RADTOT(75),COLTOT(75)                             ACXI1071
+      COMMON /TDEP/ TE32,TE12,CTE                                       ACXI1072
+      DIMENSION MVAL(75)                                                ACXI1073
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1074
+      DOUBLE PRECISION A,AKK,AN,C,COLTOT,CTE,CX,CXP,G,Q,RADTOT,T,TE12,TEACXI1075
+     132,TOT                                                            ACXI1076
+C                                                                       ACXI1077
+C     RADIATIVE CASCADE COEFFICIENTS                                    ACXI1078
+C                                                                       ACXI1079
+C     SUM FROM N TO ALL LEVELS DOWN TO NMIN (=1 OR 2)                   ACXI1080
+C                                                                       ACXI1081
+      DO 20 M=1,IC                                                      ACXI1082
+      J=MVAL(M)                                                         ACXI1083
+      TOT=0.D0                                                          ACXI1084
+      IF (J.LE.NMIN) GO TO 20                                           ACXI1085
+      K=J-1                                                             ACXI1086
+      DO 10 I=NMIN,K                                                    ACXI1087
+      CALL RAD (A,I,J,G)                                                ACXI1088
+ 10   TOT=TOT+A                                                         ACXI1089
+ 20   RADTOT(M)=TOT                                                     ACXI1090
+C                                                                       ACXI1091
+C     COLLISIONAL RATE TOTALS ON TO LEVEL N                             ACXI1092
+C                                                                       ACXI1093
+C     SUMMED FROM NMIN TO INFINITY                                      ACXI1094
+C                                                                       ACXI1095
+      DO 70 M=1,IC                                                      ACXI1096
+      N=MVAL(M)                                                         ACXI1097
+      AN=N                                                              ACXI1098
+      TOT=0.D0                                                          ACXI1099
+      L=N-1                                                             ACXI1100
+      DO 30 KK=20,L                                                     ACXI1101
+      C=COLRAT(KK,N,T,TE12)                                             ACXI1102
+ 30   TOT=TOT+C                                                         ACXI1103
+      L=N+1                                                             ACXI1104
+      MAX=N+40                                                          ACXI1105
+      DO 60 KK=L,MAX                                                    ACXI1106
+      AKK=KK                                                            ACXI1107
+      C=COLRAT(N,KK,T,TE12)                                             ACXI1108
+      CX=CXP(KK)                                                        ACXI1109
+      IF (CX.LT.1.D-30) GO TO 40                                        ACXI1110
+      CXN=CXP(N)                                                        ACXI1111
+      IF (CXN.LT.1.D-30) GO TO 40                                       ACXI1112
+      Q=CXN/CX                                                          ACXI1113
+      GO TO 50                                                          ACXI1114
+ 40   Q=DEXP(15.778D4*(1.D0/AKK**2-1.D0/AN**2)/T)                       ACXI1115
+ 50   C=C*(AKK/AN)**2*Q                                                 ACXI1116
+ 60   TOT=TOT+C                                                         ACXI1117
+ 70   COLTOT(M)=TOT                                                     ACXI1118
+      RETURN                                                            ACXI1119
+      END                                                               ACXI1120
+C                                                                       ACXI1121
+      SUBROUTINE RECOMB (Z,ETEMP,N1,ALPHA)                              ACXI1122
+C                                                                       ACXI1123
+C  COMPUTES RECOMBINATION COEFFICIENT, ALPHA, ONTO LEVEL  N1  FOR IONS  ACXI1124
+C  OF EFFECTIVE CHARGE  Z  AT ELECTRON TEMPERATURE  ETEMP               ACXI1125
+C                                                                       ACXI1126
+      COMMON /RCMB/ SV0(99),SV1(99),SV2(99)                             ACXI1127
+C  SV0, SV1, SV2 NOT DOUBLE PRECISION                                   ACXI1128
+      DIMENSION XV(99)                                                  ACXI1129
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1130
+      DOUBLE PRECISION ALPHA,CONST,ETEMP,F,FL,P,Q,S0,S1,S2,TE,U,V,X,XV,XACXI1131
+     1VI,XVI1,XXX,Y,Z2,Z                                                ACXI1132
+      Z2=Z*Z                                                            ACXI1133
+      TE=ETEMP*1.0D-4                                                   ACXI1134
+      CONST=15.778D0/TE                                                 ACXI1135
+      FL=1.D0/(CONST*Z2)**.33333333333333D0                             ACXI1136
+      CONST=5.197D-14*Z2*DSQRT(CONST)                                   ACXI1137
+      XV(1)=.02D0                                                       ACXI1138
+      DO 10 N=2,11                                                      ACXI1139
+ 10   XV(N)=XV(N-1)+.002D0                                              ACXI1140
+      DO 20 N=12,23                                                     ACXI1141
+ 20   XV(N)=XV(N-1)+.005D0                                              ACXI1142
+      DO 30 N=24,33                                                     ACXI1143
+ 30   XV(N)=XV(N-1)+.01D0                                               ACXI1144
+      DO 40 N=34,65                                                     ACXI1145
+ 40   XV(N)=XV(N-32)*10.D0                                              ACXI1146
+      DO 50 N=66,97                                                     ACXI1147
+ 50   XV(N)=XV(N-32)*10.D0                                              ACXI1148
+      F=N1                                                              ACXI1149
+      X=15.778D0*Z2/(F*F*TE)                                            ACXI1150
+      IF (X.LT.0.02D0) GO TO 80                                         ACXI1151
+      IF (X.GT.20.D0) GO TO 70                                          ACXI1152
+      DO 60 I=2,99                                                      ACXI1153
+      XVI=XV(I)                                                         ACXI1154
+      IF (X.GT.XVI) GO TO 60                                            ACXI1155
+      IM1=I-1                                                           ACXI1156
+      XVI1=XV(IM1)                                                      ACXI1157
+      P=1.D0/(XVI-XVI1)                                                 ACXI1158
+      Q=(XVI-X)*P                                                       ACXI1159
+      P=(X-XVI1)*P                                                      ACXI1160
+      S0=P*SV0(I)+Q*SV0(IM1)                                            ACXI1161
+      S1=P*SV1(I)+Q*SV1(IM1)                                            ACXI1162
+      S2=P*SV2(I)+Q*SV2(IM1)                                            ACXI1163
+      GO TO 90                                                          ACXI1164
+ 60   CONTINUE                                                          ACXI1165
+ 70   U=1.D0/X                                                          ACXI1166
+      V=U/3.D0                                                          ACXI1167
+      XXX=X**.333333333333333D0                                         ACXI1168
+      S0=1.D0-U*(1.D0-2.D0*U*(1.D0-3.D0*U*(1.D0-4.D0*U)))               ACXI1169
+      S1=-.1728D0*XXX*(1.D0-V*(8.D0-V*(70.D0-V*(800.D0-V*11440.D0))))   ACXI1170
+      S2=-.0496D0*XXX**2*(1.D0-V*(3.D0-V*(32.D0-V*448.D0)))             ACXI1171
+      GO TO 90                                                          ACXI1172
+ 80   S0=X*DEXP(X)*(-DLOG(X)-.5772D0+X)                                 ACXI1173
+      XXX=X**.333333333333333D0                                         ACXI1174
+      S1=.4629D0*X*(1.D0+4.D0*X)-1.0368D0*XXX**4*(1.D0+1.875D0*X)       ACXI1175
+      S2=-.0672D0*X*(1.D0+3.D0*X)+.1488D0*XXX**5*(1.D0+1.8D0*X)         ACXI1176
+ 90   Y=(S0+FL*(S1+FL*S2))/F                                            ACXI1177
+      ALPHA=CONST*Y                                                     ACXI1178
+      RETURN                                                            ACXI1179
+      END                                                               ACXI1180
+C                                                                       ACXI1181
+      SUBROUTINE REDUCE (M,IC,IR,SK)                                    ACXI1182
+C                                                                       ACXI1183
+C   GIVEN A SET OF INTEGERS                                             ACXI1184
+C         M(IT),IT=1,IC,SUCH THAT-                                      ACXI1185
+C         1) M(IT+1)=M(IT)+1  FOR IT.LE.IA                              ACXI1186
+C         WHERE IA.GE.1  AND                                            ACXI1187
+C         2) (M(IT+1) - M(IT)).GT.1 FOR IT.GE.IA,                       ACXI1188
+C   AND GIVEN A FUNCTION SUBPROGRAM  BK                                 ACXI1189
+C         WHICH CALCULATES THE                                          ACXI1190
+C         ELEMENTS OF A LARGE                                           ACXI1191
+C         M(IC)*M(IC) MATRIX,                                           ACXI1192
+C   THIS SUBROUTINE USES LAGRANGE                                       ACXI1193
+C         INTERPOLATION OF ORDER                                        ACXI1194
+C         2*(IR+1) TO CALCULATE A                                       ACXI1195
+C         SMALLER IC*IC MATRIX SK                                       ACXI1196
+C   REQUIRES A FUNCTION SUBPROGRAM                                      ACXI1197
+C         PHI                                                           ACXI1198
+C   IR MUST BE .LE. (IA-1)                                              ACXI1199
+C                                                                       ACXI1200
+      DIMENSION IQ(8), M(75), SK(75,75)                                 ACXI1201
+      DIMENSION STORE1(8), STORE2(8)                                    ACXI1202
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1203
+      DOUBLE PRECISION BK,DUCKIT,FL,PHI,PHITAU,SK,STORE1,STORE2         ACXI1204
+C                                                                       ACXI1205
+      LG=2*(IR+1)                                                       ACXI1206
+      IB=IC-IR                                                          ACXI1207
+      IBB=IB-1                                                          ACXI1208
+      ICC=IC-1                                                          ACXI1209
+C                                                                       ACXI1210
+      DO 10 IS=1,IC                                                     ACXI1211
+      DO 10 IT=1,IC                                                     ACXI1212
+ 10   SK(IS,IT)=BK(M(IS),M(IT),IS)                                      ACXI1213
+C                                                                       ACXI1214
+      DO 20 IT=1,IC                                                     ACXI1215
+      IA=IT                                                             ACXI1216
+      IF ((M(IT+1)-M(IT)).GT.1) GO TO 30                                ACXI1217
+ 20   CONTINUE                                                          ACXI1218
+C                                                                       ACXI1219
+ 30   IF (IA.EQ.IC) GO TO 110                                           ACXI1220
+      IF (IA.EQ.IB) GO TO 80                                            ACXI1221
+C                                                                       ACXI1222
+      DO 70 IT=IA,IBB                                                   ACXI1223
+      N1=M(IT)+1                                                        ACXI1224
+      N2=M(IT+1)-1                                                      ACXI1225
+      DO 40 ITAU=1,LG                                                   ACXI1226
+      IND=IT-IR-1+ITAU                                                  ACXI1227
+ 40   IQ(ITAU)=M(IND)                                                   ACXI1228
+      DO 50 ITAU=1,LG                                                   ACXI1229
+ 50   STORE1(ITAU)=PHI(IQ,LG,ITAU,IQ(ITAU))                             ACXI1230
+      DO 70 N=N1,N2                                                     ACXI1231
+      DO 60 ITAU=1,LG                                                   ACXI1232
+ 60   STORE2(ITAU)=PHI(IQ,LG,ITAU,N)                                    ACXI1233
+      DO 70 IS=1,IC                                                     ACXI1234
+      DUCKIT=BK(M(IS),N,IS)                                             ACXI1235
+      DO 70 ITAU=1,LG                                                   ACXI1236
+      FL=STORE2(ITAU)/STORE1(ITAU)                                      ACXI1237
+      IND=IT-IR-1+ITAU                                                  ACXI1238
+ 70   SK(IS,IND)=SK(IS,IND)+DUCKIT*FL                                   ACXI1239
+C                                                                       ACXI1240
+ 80   IF (IR.EQ.0) GO TO 110                                            ACXI1241
+C                                                                       ACXI1242
+      DO 90 ITAU=1,LG                                                   ACXI1243
+      IND=IC-LG+ITAU                                                    ACXI1244
+ 90   IQ(ITAU)=M(IND)                                                   ACXI1245
+      DO 100 ITAU=1,LG                                                  ACXI1246
+      PHITAU=1.D0/PHI(IQ,LG,ITAU,IQ(ITAU))                              ACXI1247
+      DO 100 IT=IB,ICC                                                  ACXI1248
+      N1=M(IT)+1                                                        ACXI1249
+      N2=M(IT+1)-1                                                      ACXI1250
+      DO 100 N=N1,N2                                                    ACXI1251
+      FL=PHI(IQ,LG,ITAU,N)*PHITAU                                       ACXI1252
+      DO 100 IS=1,IC                                                    ACXI1253
+      IND=IC-LG+ITAU                                                    ACXI1254
+ 100  SK(IS,IND)=SK(IS,IND)+BK(M(IS),N,IS)*FL                           ACXI1255
+C                                                                       ACXI1256
+ 110  RETURN                                                            ACXI1257
+      END                                                               ACXI1258
+C                                                                       ACXI1259
+      SUBROUTINE RHS (CO,MVAL,IC)                                       ACXI1260
+C                                                                       ACXI1261
+C  COMPUTES THE RIGHT HAND SIDE OF EQUATIONS (2.7) OF BROCKLEHURST,     ACXI1262
+C  MNRAS 148, 417 (1970).                                               ACXI1263
+C                                                                       ACXI1264
+      COMMON /EXPDAT/ CXP(707),MAXN                                     ACXI1265
+      COMMON /PARMS/ DENS,T,ITM                                         ACXI1266
+      COMMON /TDEP/ TE32,TE12,CTE                                       ACXI1267
+      DIMENSION MVAL(75), CO(75)                                        ACXI1268
+      DOUBLE PRECISION DABS,DSQRT,DBLE,DLOG,DLOG10,DFLOAT,DEXP          ACXI1269
+      DOUBLE PRECISION ALFA,CO,CTE,CXP,DENS,RT,T,TE12,TE32              ACXI1270
+      DO 10 I=1,IC                                                      ACXI1271
+      J=MVAL(I)                                                         ACXI1272
+      CALL COLION (J,1,T,RT)                                            ACXI1273
+      CALL RECOMB (1.D0,T,J,ALFA)                                       ACXI1274
+      CO(I)=-ALFA*CXP(J)*TE32*0.24146879D16/DFLOAT(J*J)-RT*DENS         ACXI1275
+ 10   CONTINUE                                                          ACXI1276
+      RETURN                                                            ACXI1277
+      END                                                               ACXI1278
+/*                                                                      ACXI1279
+//GO.FT07F001 DD UNIT=DISC,DSN=&&CARDS,DISP=(NEW,PASS),                 ACXI1280
+//  DCB=FB,SPACE=(CYL,(1,1))  CARD PUNCH OUTPUT SENT TO TEMPORARY FILE  ACXI1281
+//GO.SYSIN DD *  DATA INPUT CARDS                                       ACXI1282
+BN PROGRAM TEST                                                         ACXI1283
+C 75  2  4                                                              ACXI1284
+C 30 31 32 33 34 35 37 39 41 43 46 49 52 55 58 61 64 68 72 76 80 84 88  ACXI1285
+C 92 97102107112117122127132138144150156162168174180187194201208215222  ACXI1286
+C230238246254262270279288297306315325335345355365375386397408419430441  ACXI1287
+C452463474485496507                                                     ACXI1288
+C 75 72 69 66                                                           ACXI1289
+10000.     10000000.                                                    ACXI1290
+500.        1.          2                                               ACXI1291
+500.        0.01        2    2   50  249                                ACXI1292
+                                                                        ACXI1293
+/*                                                                      ACXI1294
+//CARDS EXEC FILE  PRINT CARD O/P AFTER PRINTER O/P. NO CARDS PUNCHED   ACXI1295
+//FROM DD DSN=&&CARDS,DISP=(OLD,DELETE)                                 ACXI1296
+//TO DD SYSOUT=A                                                        ACXI1297
+                                                                        ACXI****
