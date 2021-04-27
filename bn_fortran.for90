@@ -1,13 +1,3 @@
-ACXIGENERAL BN PROGRAM.  RADIO RECOMBINATION LINES FROM H REGIONS AND   ACXI0000
-1   COLD INTERSTELLAR CLOUDS: COMPUTATION OF THE BN FACTORS.            ACXI0000
-2   M. BROCKLEHURST, M. SALEM.                                          ACXI0000
-REF. IN COMP. PHYS. COMMUN. 13 (1977) 39                                ACXI0000
-JOB MS13 2355 BN PROGRAM TEST                                           ACXI0001
-ROUTE PRINTER WESTCAM,POST WCAV,NOTIFY                                  ACXI0002
-MSGLEVEL=1                                                              ACXI0003
-LIMSTORE 175K,COMP 75 SECS,PRINTER 5000                                 ACXI0004
-//ONE EXEC FTG1CLG,REGG=175K,LISTC=SOURCE,MAPL=MAP  COMPILE, LOAD, GO   ACXI0005
-//FORT.SYSIN DD *  SOURCE PROGRAM CARDS                                 ACXI0006
 C                      WIDE TEMPERATURE RANGE BN PROGRAM                ACXI0007
 C                      *********************************                ACXI0008
 C                                                                       ACXI0009
