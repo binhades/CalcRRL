@@ -4,8 +4,8 @@
 
 import argparse, os, time
 import numpy as np
+import matplotlib.pyplot as plt
 import pyrrl as rrl
-
 
 def main(args):
 
@@ -32,6 +32,10 @@ def main(args):
 #    print('EnergyLeve Lifetime:     {:f}'.format(lt))
 #    print('Recombination rate: {:e}'.format(alpha)) 
 #==============================================================================
+    n_arr = np.arange(args.N_min,args.N_max+1)
+    bn = rrl.bn.departure_coefficients(n_min=args.N_min,n_max=args.N_max)
+    plt.plot(n_arr,bn)
+    plt.show()
     return 0
 if __name__ == '__main__':
 
@@ -42,9 +46,9 @@ if __name__ == '__main__':
             help='Electron Density in cm-3, default 10000 cm-3')
     parser.add_argument('--N',    type=int,   default=40, \
             help='Primary quantum level, default 40')
-    parser.add_argument('--N_min', type=int,   default=10, \
+    parser.add_argument('--N_min', type=int,   default=40, \
             help='lower limit of Primary quantum level, default 10')
-    parser.add_argument('--N_max', type=int,   default=507, \
+    parser.add_argument('--N_max', type=int,   default=200, \
             help='upper limit Primary quantum level, default 507')
     parser.add_argument('--N_l',  type=int,   default=10, \
             help='lower level, default 10')
