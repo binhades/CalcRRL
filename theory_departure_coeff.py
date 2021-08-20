@@ -33,7 +33,7 @@ def main(args):
 #    print('Recombination rate: {:e}'.format(alpha)) 
 #==============================================================================
     n_arr = np.arange(args.N_min,args.N_max+1)
-    bn = rrl.bn.departure_coefficients(n_min=args.N_min,n_max=args.N_max)
+    bn = rrl.bn.departure_coefficients(n_min=args.N_min,n_max=args.N_max,Te=args.Te,Ne=args.Ne)
     plt.plot(n_arr,bn)
     plt.show()
     return 0
