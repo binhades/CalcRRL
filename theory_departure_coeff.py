@@ -19,13 +19,15 @@ def main(args):
 #    A_ul0= rrl.atom.Einstein_Coefficient_A(n_u,n_l,method=args.method)
 #    A_ul1= rrl.atom.Einstein_Coefficient_A(n_u,n_l)
 #    lt = rrl.atom.energy_level_lifetime(n_u)
-#
+#    alpha = rrl.atom.recombination_rate(args.N,args.Te,method=args.method)
+
 #    print('N_u: {:d};\nN_l: {:d};\nMethod: {:d}'.format(n_u,n_l, args.method))
 #    print('Oscillator Strength: f = {:f}'.format(f_ul))
 #    print('Gaunt Factor:        g = {:f}'.format(g_ul))
 #    print('Einstein A:          A = {:f}'.format(A_ul0))
 #    print('Einstein A default:  A = {:f}'.format(A_ul1))
 #    print('EnergyLeve Lifetime:     {:f}'.format(lt))
+#    print('Recombination rate: {:f}'.format(alpha)) 
 #==============================================================================
 
 if __name__ == '__main__':
@@ -39,7 +41,8 @@ if __name__ == '__main__':
     parser.add_argument('--N_l',  type=int,   default=10,   help='lower level, default 10')
     parser.add_argument('--N_u',  type=int,   default=11,   help='upper level, default 11')
     parser.add_argument('--case', type=int,   default=2,     help='1 for Case A, 2 for Case B, default 2')
-    parser.add_argument('--method', type=int,   default=1,   help='method')
+    #parser.add_argument('--method', type=int,   default=1,   help='method')
+    parser.add_argument('--method', type=str,   default='S59',   help='method')
 
     args = parser.parse_args()
 
