@@ -33,7 +33,7 @@ def main(args):
 #    print('Recombination rate: {:e}'.format(alpha)) 
 #==============================================================================
     n_arr = np.arange(args.N_min,args.N_max+1)
-    bn = rrl.bn.departure_coefficients(n_min=args.N_min,n_max=args.N_max,Te=args.Te,Ne=args.Ne)
+    bn = rrl.bn.departure_coefficients(n_min=args.N_min,n_max=args.N_max,n_cut=args.N_cut,Te=args.Te,Ne=args.Ne)
     plt.plot(n_arr,bn)
     plt.show()
     return 0
@@ -46,6 +46,8 @@ if __name__ == '__main__':
             help='Electron Density in cm-3, default 10000 cm-3')
     parser.add_argument('--N',    type=int,   default=40, \
             help='Primary quantum level, default 40')
+    parser.add_argument('--N_cut', type=int,   default=1000, \
+            help='cut of Primary quantum level, default 10')
     parser.add_argument('--N_min', type=int,   default=40, \
             help='lower limit of Primary quantum level, default 10')
     parser.add_argument('--N_max', type=int,   default=200, \
