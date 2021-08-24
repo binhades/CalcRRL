@@ -151,7 +151,7 @@ def main(args):
             n_l = n
             for k in range(i+1,args.N_max-1):
                 n_u = n_arr[k]
-                C_lu[i,k,j]= rrl.atom.collision_excitation_rate(n_l,n_u,T)
+                C_lu[i,k,j]= rrl.atom.collision_excitation_rate(n_l,n_u,T,method='Integ')
 
     plot(n_arr, C_lu, C_ul, C_ni, C_in, labels)
 
