@@ -31,7 +31,7 @@ def plot(n_arr, bn, beta_n, labels, format='png', issave=False, isshow=True):
 #==============================================================================
     plt.tight_layout()
     if issave:
-        plt.savefig('departure_coeff.png',format=format,dpi=300,bbox_inches=tight)
+        plt.savefig('departure_coeff.png',format=format,dpi=300,bbox_inches='tight')
     if isshow:
         plt.show()
     plt.close(fig)
@@ -44,7 +44,7 @@ def main(args):
     Te = args.Te
 
     if args.Ne is None:
-        Ne_list = [ 1, 10, 1e2, 1e3, 1e4, 1e5]
+        Ne_list = [10, 1e2, 1e3, 1e4]
     else:
         Ne_list = [args.Ne]
 
@@ -59,7 +59,7 @@ def main(args):
         beta_n = rrl.bn.amplification_factor(bn,Te)
         bn_list.append(bn)
         beta_n_list.append(beta_n)
-    plot(n_arr,bn_list,beta_n_list,labels)
+    plot(n_arr,bn_list,beta_n_list,labels,issave=args.save)
     return 0
 if __name__ == '__main__':
 
@@ -68,18 +68,17 @@ if __name__ == '__main__':
             help='Electron Temperature in K')
     parser.add_argument('--Ne',   type=float, \
             help='Electron Density in cm-3')
-    parser.add_argument('--N',    type=int,   default=40, \
-            help='Primary quantum level, default 40')
     parser.add_argument('--N_cut', type=int,   default=800, \
             help='cut of Primary quantum level, default 800')
     parser.add_argument('--N_min', type=int,   default=20, \
-            help='lower limit of Primary quantum level, default 10')
+            help='lower limit of Primary quantum level, default 30')
     parser.add_argument('--N_max', type=int,   default=300, \
             help='upper limit Primary quantum level, default 300')
     parser.add_argument('--case', type=int,   default=2, \
             help='1 for Case A, 2 for Case B, default 2')
     parser.add_argument('--method', type=str,   default='S59', \
             help='method')
+    parser.add_argument('--save', action='store_true',help='set to save figure')
 
     args = parser.parse_args()
 
