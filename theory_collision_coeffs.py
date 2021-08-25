@@ -39,7 +39,7 @@ def plot(n_arr, C_lu, C_ul, C_ni, C_in, labels, format='png',issave=False,isshow
     
     ax1.set_title('Rate Coefficient of Collision excitation')
     ax1.set_xlabel('Primary level $n$')
-    ax1.set_ylabel('Properbility ($s^{-1}$)')
+    ax1.set_ylabel('Rate ($cm^{3} s^{-1}$)')
     ax1.set_yscale('log')
     ax1.grid(True)
     ax1.legend()
@@ -71,7 +71,7 @@ def plot(n_arr, C_lu, C_ul, C_ni, C_in, labels, format='png',issave=False,isshow
     
     ax2.set_title('Rate Coefficient of Collision de-excitation')
     ax2.set_xlabel('Primary level $n$')
-    ax2.set_ylabel('Properbility ($s^{-1}$)')
+    ax2.set_ylabel('Rate ($cm^{3} s^{-1}$)')
     ax2.set_yscale('log')
     ax2.grid(True)
     ax2.legend()
@@ -89,7 +89,7 @@ def plot(n_arr, C_lu, C_ul, C_ni, C_in, labels, format='png',issave=False,isshow
     
     ax3.set_title('Rate Coefficient of Collision ionization')
     ax3.set_xlabel('Primary level $n$')
-    ax3.set_ylabel('Properbility ($s^{-1}$)')
+    ax3.set_ylabel('Rate ($cm^{3} s^{-1}$)')
     ax3.set_yscale('log')
     ax3.grid(True)
     ax3.legend()
@@ -102,13 +102,13 @@ def plot(n_arr, C_lu, C_ul, C_ni, C_in, labels, format='png',issave=False,isshow
     
     for l, lab in enumerate(labels):
         for i,n in enumerate(n_arr):
-            y4[i] = C_ni[i,l]
+            y4[i] = C_in[i,l]
 # --------------------------------
         ax4.plot(n_arr,y4,'-', label='C$_{i,n}$, '+lab)
 
     ax4.set_title('Rate Coefficient of Three-body recombination')
     ax4.set_xlabel('Primary level $n$')
-    ax4.set_ylabel('Lifetime ($s$)')
+    ax4.set_ylabel('Rate ($cm^{6} s^{-1}$)')
     ax4.set_yscale('log')
     ax4.grid(True)
     ax4.legend()
@@ -141,7 +141,7 @@ def main(args):
 
     for i, n in enumerate(n_arr):
         for j, T in enumerate(Te):
-            C_ni[i,j] = rrl.atom.collision_ionization_rate(n,T)
+            C_ni[i,j] = rrl.atom.collision_ionization_rate(n,T,method='V80')
             C_in[i,j] = rrl.atom.threebody_recombination_rate(n,T)
 
             n_u = n
