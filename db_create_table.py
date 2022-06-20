@@ -1,4 +1,4 @@
-#! /home/bliu/anaconda3/bin/python
+#! /usr/bin/python3
 
 # Filename: db_create_table.py
 # Aim: to load the data cube, extract spectra.

@@ -1,6 +1,5 @@
-#!/home/bliu/anaconda3/bin/python
+#!/usr/bin/python3
 
-##!/usr/bin/python3
 # given a source in a catalog and a set of datacubes of a serial of RRLs
 # plot the line intensities v.s. RRLs (frequencies)
 

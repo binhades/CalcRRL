@@ -1,4 +1,4 @@
-#!/home/bliu/anaconda3/bin/python
+#!/usr/bin/python3
 
 # Filename : db_update_continue.py
 # Aim: Load fits image, print the flux of given ds9 regions.

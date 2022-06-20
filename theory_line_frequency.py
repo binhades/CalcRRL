@@ -1,5 +1,4 @@
-#! /home/bliu/anaconda3/bin/python
-#
+#! /usr/bin/python3
 
 import argparse, os, sys
 import numpy as np

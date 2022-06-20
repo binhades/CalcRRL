@@ -1,4 +1,4 @@
-#! /home/bliu/anaconda3/bin/python
+#! /usr/bin/python3
 
 # Filename: db_fit_spec.py
 # Aim: to load the data base and then to fit spectra.

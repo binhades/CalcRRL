@@ -1,5 +1,5 @@
-#! /home/bliu/anaconda3/bin/python
-#
+#!/usr/bin/python3
+
 # hiirrl.py
 # start-up script 
 

@@ -1,4 +1,5 @@
-#! /home/bliu/anaconda3/bin/python
+#!/usr/bin/python3
+
 # line_ratio.py
 
 import argparse, os, sys

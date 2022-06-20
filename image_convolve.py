@@ -1,4 +1,4 @@
-#!/home/bliu/anaconda3/bin/python
+#!/usr/bin/python3
 
 # Filename : tools_image_convolve.py
 # Aim: to convolve the image to the beam size we wanted.

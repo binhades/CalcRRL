@@ -1,4 +1,4 @@
-#! /home/bliu/anaconda3/bin/python
+#!/usr/bin/python3
 
 # Filename: db_table_fromCSV.py
 # Aim: to load the WISE HII catalog from CSV into SQLite3 database.
