@@ -55,8 +55,8 @@ def main(args):
         N_arr[i] = N_1b*r_N_u2l
         print('n = {:3d} : Saha (LTE) Level population = {:e}, Boltzman ratio: {:e}'.format(n,N_n, N_arr[i]))
 
-#    if args.plot:
-#        plot_line_intensity(source['gname'],line_list,freq_list,flux_list,ferr_list)
+    if args.plot:
+        plot_line_intensity(source['gname'],line_list,freq_list,flux_list,ferr_list)
 
     return 0
 
