@@ -33,11 +33,18 @@ def table_format():
                 Hi_Gal_160um,
                 HRDS_3cm,
                 MAGPIS_20cm,
-                VGPS_21cm
+                VGPS_21cm,
+                GName
     '''
-    tab_command = "INSERT INTO wisehii VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    tab_command = "INSERT INTO wisehii VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     return table, tab_hdr, tab_command
+
+def get_gname(l,b):
+
+    return  "G{:07.3f}{:+07.3f}".format(l,b)
+
+
 def main(args):
 
     db_conn = sqlite3.connect(args.file_db)
@@ -47,8 +54,14 @@ def main(args):
 
     with open(args.file_csv, 'r') as fcsv:
         rows = csv.reader(fcsv,delimiter=',')
-        next(rows,None)
-        db_cur.executemany(tab_command, rows)
+        i = 0
+        for item in rows:
+            if i == 0:
+                i = 1
+                continue
+            gname = get_gname(float(item[2]), float(item[3]))
+            item.append(gname)
+            db_cur.executemany(tab_command, (item,))
 
     db_cur.execute("SELECT * FROM wisehii")
     print(db_cur.fetchall())
