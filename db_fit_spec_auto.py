@@ -9,7 +9,7 @@ from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 import pyrrl as rrl
 
-def spec_fit(velo,spec,toPlot=False,toWrite=False,source='',paras=None):
+def spec_fit(velo,spec,toPlot=False,toWrite=False,toPrint=True,source='',paras=None):
 
     if paras == None:
         paras = [0.1, 40., 10.]
@@ -27,13 +27,14 @@ def spec_fit(velo,spec,toPlot=False,toWrite=False,source='',paras=None):
     fpeak = sp_fit.amplitude.value
     vlsr = sp_fit.mean.value
     fwhm = sp_fit.fwhm
+    para_err = np.sqrt(np.diag(fit.fit_info['param_cov']))
 #    print(fit.fit_info['param_cov'])
 #    print(fit.fit_info['cov_x'])
-
-    para_err = np.sqrt(np.diag(fit.fit_info['param_cov']))
-    print(para_err)
+#    print(para_err)
     yfit = sp_fit(velo)
 
+    if toPrint:
+        print(f'Peak:{fpeak:.5f} --- VLSR:{vlsr:.2f} --- FWHM:{fwhm:.2f}')
     if toPlot:
         plt.figure(figsize=(6,4))
         plt.plot(velo,spec)
@@ -60,7 +61,9 @@ def main(args):
         source_list = rrl.db.read_from_table(db_conn,'Source')
         spec_list = rrl.db.read_from_table(db_conn,'Spectrum')
 
-        for source in spec_list:
+        for i, source in enumerate(spec_list):
+
+            print(i+1, source['GName'])
 
             spec = np.frombuffer(source['Spec'],dtype=np.float32)
             velo = np.frombuffer(source['Velo'],dtype=np.float32)
@@ -71,6 +74,8 @@ def main(args):
 
                 rrl.db.add_to_specfit(db_conn,(source['GName'],fpeak,fpeak_err,vlsr,vlsr_err,fwhm,fwhm_err),table='SpFitHa')
                 rrl.db.update_specfit_yfit(db_conn,yfit,source['GName'])
+            else:
+                print(' >> Error:  ', source['GName'], spec.shape, velo.shape)
 
     return 0
 
